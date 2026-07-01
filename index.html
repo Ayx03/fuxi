@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>期末考前突击 - 刷题神器 (进度保存版)</title>
+    <title>期末考前突击 - 刷题神器 (乱序分离版)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f7f9fc; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; line-height: 1.6; }
         .card { background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); margin-top: 20px; }
-        .stats { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 0.9em; color: #666; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .stats { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 0.9em; color: #666; border-bottom: 1px solid #eee; padding-bottom: 15px; flex-wrap: wrap; gap: 10px; }
         .badge { background: #007bff; color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85em; }
-        #toggleMode { color: #dc3545; font-weight: bold; text-decoration: none; border: 1px solid currentColor; padding: 3px 10px; border-radius: 12px; transition: 0.2s; }
-        #toggleMode:hover { background: #dc3545; color: white; }
+        .controls { display: flex; gap: 10px; }
+        .mode-btn { font-weight: bold; text-decoration: none; border: 1px solid currentColor; padding: 4px 12px; border-radius: 12px; transition: 0.2s; font-size: 0.9em; }
+        .mode-btn:hover { opacity: 0.8; }
         .question { font-size: 1.15em; font-weight: bold; margin-bottom: 20px; }
         .option { display: block; background: #f8f9fa; padding: 14px 16px; margin-bottom: 12px; border-radius: 10px; cursor: pointer; transition: 0.2s; border: 2px solid transparent; word-wrap: break-word; }
         .option:hover { background: #e9ecef; }
@@ -31,15 +32,19 @@
 
 <div class="card">
     <div class="stats">
-        <span id="progress">进度: 加载中...</span>
-        <span class="badge" id="qTypeBadge">加载中</span>
-        <a href="#" id="toggleMode">进入错题本</a>
+        <div>
+            <span id="progress">进度: 加载中...</span>
+            <span class="badge" id="qTypeBadge">加载中</span>
+        </div>
+        <div class="controls">
+            <a href="#" id="toggleShuffle" class="mode-btn">⬇️ 顺序</a>
+            <a href="#" id="toggleMode" class="mode-btn">进入错题本</a>
+        </div>
     </div>
-    <div class="question" id="questionText">正在解析题库，请稍候...</div>
+    <div class="question" id="questionText">正在加载题库，请稍候...</div>
     <div id="optionsContainer"></div>
     <div class="feedback" id="feedback"></div>
     
-    <!-- 全新导航按钮组 -->
     <div class="btn-group">
         <button class="btn-prev" id="prevBtn">上一题</button>
         <button class="btn-submit" id="submitBtn">提交答案</button>
@@ -47,1922 +52,262 @@
     </div>
 </div>
 
+<script src="questions.js"></script>
+
 <script>
-    // 题库文本 (包含全部326题)
-    const rawText = `判断题
-1.习近平新时代中国特色社会主义思想是党和人民集体智慧的结晶。（）
-A.对
-B.错
-答案：A
-2.马克思主义只需照搬理论，不需要结合中华优秀传统文化。（）
-A.对
-B.错
-答案：B
-3.胸怀天下是“六个必须坚持”内容之一。（）
-A.对
-B.错
-答案：A
-4.世界百年未有之大变局呈现东升西降的发展趋势（）。
-A.对
-B.错
-答案：A
-5.科学社会主义在21 世纪中国丧失发展活力。（）
-A.对
-B.错
-答案：B
-6.“两个确立”是新时代的重大政治成果。（）
-A.对
-B.错
-答案：A
-7.中国式现代化可以照搬西方现代化发展模式。（）
-A.对
-B.错
-答案：B
-8.青年大学生学习新思想要立足国情，投身社会实践。（）
-A.对
-B.错
-答案：A
-9.我国社会主要矛盾变化，改变了社会主义初级阶段基本国情判断。（）
-A.对
-B.错
-答案：B
-10.文化自信是最深沉、最持久的力量。（）
-A.对
-B.错
-答案：A
-11.中国特色社会主义是历史和人民的选择。（）
-A.对
-B.错
-答案：A
-12.不能用改革开放前后某一历史时期否定另一时期。（）
-A.对
-B.错
-答案：A
-13.中国特色社会主义是科学社会主义的中国化形态。（）
-A.对
-B.错
-答案：A
-14.发展不平衡不充分是制约美好生活的主要因素。（）
-A.对
-B.错
-答案：A
-15.中国特色社会主义拓展发展中国家现代化新选择。（）
-A.对
-B.错
-答案：A
-16.新时代中国特色社会主义需要一以贯之接续奋斗。（）
-A.对
-B.错
-答案：A
-17.实现中华民族伟大复兴是近代以来中华民族最伟大的梦想。（）
-A.对
-B.错
-答案：A
-18.全面建成小康社会在2022年正式宣布完成。（）
-A.对
-B.错
-答案：B
-19.2035年目标是全面建成社会主义现代化强国。（）
-A.对
-B.错
-答案：B
-20.中国式现代化是中国共产党领导的社会主义现代化。（）
-A.对
-B.错
-答案：A
-21.西方现代化普遍以实现共同富裕为主要目标。（）
-A.对
-B.错
-答案：B
-22.中国式现代化兼顾物质文明与精神文明协调发展。（）
-A.对
-B.错
-答案：A
-23.中国式现代化创造了人类文明新形态。（）
-A.对
-B.错
-答案：A
-24.我国提前10年完成联合国2030年减贫目标。（ ）
-A.对
-B.错
-答案：A
-25.共同富裕就是同步富裕、同等富裕。（）
-A.对
-B.错
-答案：B
-26.中国共产党是我国最高政治领导力量。（）
-A.对
-B.错
-答案：A
-27.党的领导就是党组织包揽所有具体事务、包办一切。（）
-A.对
-B.错
-答案：B
-28.没有中国共产党领导，人民当家作主无法真正落地。（）
-A.对
-B.错
-答案：A
-29.维护党中央权威，对象是各级地方党委。（）
-A.对
-B.错
-答案：B
-30.民主集中制既发扬党内民主又坚持集中统一。（）
-A.对
-B.错
-答案：A
-31.中国最大的国情就是中国共产党的领导。（）
-A.对
-B.错
-答案：A
-32.西方多党制优于党的全面领导制度。（）
-A.对
-B.错
-答案：B
-33.党的领导只体现在政治领域，不涉及经济、生态等领域。（）
-A.对
-B.错
-答案：B
-34.人民立场是中国共产党区别于其他政党的显著标志。（）
-A.对
-B.错
-答案：A
-35.共同富裕等同于同步富裕、平均主义。（）
-A.对
-B.错
-答案：B
-36.调查研究是践行群众路线的重要方式。（）
-A.对
-B.错
-答案：A
-37.党的最大政治优势是密切联系群众。（）
-A.对
-B.错
-答案：A
-38.我国一切权力属于人民。（）
-A.对
-B.错
-答案：A
-39.评判干部政绩只看经济数据即可。（）
-A.对
-B.错
-答案：B
-40.发展成果要更多更公平惠及全体人民。（）
-A.对
-B.错
-答案：A
-41.第三次分配主要依靠慈善、公益帮扶。（）
-A.对
-B.错
-答案：A
-42.新时代群众路线只要走线下，没有网上群众路线的说法。（）
-A.对
-B.错
-答案：B
-43.全面深化改革的总目标是完善和发展中国特色社会主义制度。（）
-A.对
-B.错
-答案：B
-44.市场在资源配置中起基础性作用。（）
-A.对
-B.错
-答案：B
-45.改革开放是决定当代中国命运的关键一招。
-A.对
-B.错
-答案：A
-46.经济体制改革的核心问题是处理好中央和地方的关系。（）
-A.对
-B.错
-答案：B
-47.全面深化改革的出发点和落脚点是促进社会公平正义、增进人民福祉。（）
-A.对
-B.错
-答案：A
-48.新发展格局是以国际大循环为主体。（）
-A.对
-B.错
-答案：B
-49.全面深化改革必须坚持摸着石头过河和顶层设计相结合。（）
-A.对
-B.错
-答案：A
-50.改革、发展、稳定三者中，稳定是前提，发展是目的，改革是动力。（）
-A.对
-B.错
-答案：A
-51.制度型开放是更高水平的对外开放。（）
-A.对
-B.错
-答案：A
-52.高质量发展就是单纯追求经济增速的提高。（）
-A.对
-B.错
-答案：B
-53.创新是引领发展的第一动力。（）
-A.对
-B.错
-答案：A
-54.绿色发展注重的是解决人与自然和谐共生问题。（）
-A.对
-B.错
-答案：A
-55.共享发展注重的是解决社会公平正义问题。（）
-A.对
-B.错
-答案：A
-56.建设现代化经济体系必须把发展经济的着力点放在虚拟经济上。（）
-A.对
-B.错
-答案：B
-57.供给侧结构性改革要求减少无效和低端供给，扩大有效和中高端供给。（）
-A.对
-B.错
-答案：A
-58.我国经济发展进入新常态，增长速度要从高速转向中高速。（）
-A.对
-B.错
-答案：A
-59.推动高质量发展必须完整、准确、全面贯彻新发展理念。（）
-A.对
-B.错
-答案：A
-60.构建新发展格局的关键在于经济循环的畅通无阻。（）
-A.对
-B.错
-答案：A
-61.科技自立自强重在巩固发展优势赢得竞争主动。（）
-A.对
-B.错
-答案：B
-62.人才是国家经济社会发展的支撑力量，在国家发展中具有基础性、先导性、全局性地位。（）
-A.对
-B.错
-答案：A
-63.科技创新是百年未有之大变局中的一个关键变量。（）
-A.对
-B.错
-答案：A
-64.实现科技自主创新和人才自主培养良性互动，教育要进一步发挥先导性、基础性支撑作用。（）
-A.对
-B.错
-答案：A
-65.加强政府主导的产学研深度融合，是实现科技自立自强的关键路径。（）
-A.对
-B.错
-答案：B
-66.建设教育强国是促进全体人民共同富裕的有效途径。（）
-A.对
-B.错
-答案：A
-67.我国已建成世界最大规模高等教育体系，进入高等教育普及化发展阶段。（）
-A.对
-B.错
-答案：A
-68.高水平科技自立自强只需在个别关键领域实现突破即可。（）
-A.对
-B.错
-答案：B
-69.营造鼓励创新、宽容失败的良好氛围，是激发人才活力的重要条件。（）
-A.对
-B.错
-答案：A
-70.人民当家作主是社会主义民主政治的本质和核心。（）
-A.对
-B.错
-答案：A
-71.全过程人民民主是中国特色社会主义政治发展道路的必然要求。（）
-A.对
-B.错
-答案：A
-72.协商民主是我国社会主义民主政治的特有形式和独特优势。（）
-A.对
-B.错
-答案：A
-73.中国共产党领导的多党合作和政治协商制度属于我国的根本政治制度。（）
-A.对
-B.错
-答案：B
-74.民族区域自治制度是我国的一项基本政治制度。（）
-A.对
-B.错
-答案：A
-75.基层群众自治制度是人民当家作主最有效、最广泛的途径。（）
-A.对
-B.错
-答案：A
-76.宗教工作在党和国家工作全局中具有特殊重要性。（）
-A.对
-B.错
-答案：A
-77.发展全过程人民民主必须坚持党的领导、人民当家作主、依法治国有机统一。（）
-A.对
-B.错
-答案：A
-78.全面依法治国的总目标是建设中国特色社会主义法治体系、建设社会主义法治国家。（）
-A.对
-B.错
-答案：A
-79.依法治国首先要坚持依宪治国。（）
-A.对
-B.错
-答案：A
-80.全面依法治国最广泛、最深厚的基础是党的领导。（）
-A.对
-B.错
-答案：B
-81.公正司法是全面依法治国的生命线。（）
-A.对
-B.错
-答案：A
-82.全面依法治国必须坚持依法治国和以德治国相结合。（）
-A.对
-B.错
-答案：A
-83.全民守法是全面依法治国的基础工程。（）
-A.对
-B.错
-答案：A
-84.中国特色社会主义法治道路的核心要义不包括贯彻中国特色社会主义法治理论。（）
-A.对
-B.错
-答案：B
-85.党领导人民制定宪法和法律，党领导人民执行宪法和法律。（）
-A.对
-B.错
-答案：A
-86.全面依法治国是国家治理领域一场广泛而深刻的革命。（）
-A.对
-B.错
-答案：A
-87.文化繁荣兴盛是实现中华民族伟大复兴的物质支撑。（）
-A.对
-B.错
-答案：B
-88.中国式现代化是物质文明和精神文明相协调的现代化。（）
-A.对
-B.错
-答案：A
-89.马克思主义在意识形态领域指导地位的制度是中国特色社会主义制度体系中的基本制度。（）
-A.对
-B.错
-答案：B
-90.意识形态工作是为国家立心、为民族立魂的工作，关乎旗帜、关乎道路、关乎国家政治安全。（）
-A.对
-B.错
-答案：A
-91.社会主义核心价值观集中体现着全体人民共同的价值追求，是凝聚人心、汇聚民力的强大力量。（）
-A.对
-B.错
-答案：A
-92.“二为”方向是指坚持百花齐放、百家争鸣，这是决定社会主义文化事业前途命运的关键。（）
-A.对
-B.错
-答案：B
-93.坚持中国特色社会主义文化发展道路，必须围绕举旗帜、聚民心、育新人、兴文化、展形象的核心任务。（）
-A.对
-B.错
-答案：A
-94.文化自信是道路自信、理论自信、制度自信的基础和根基，没有高度的文化自信，就没有文化繁荣和民族复兴。（）
-A.对
-B.错
-答案：A
-95.全面建设社会主义现代化国家的出发点和落脚点是让人民生活越过越好。（）
-A.对
-B.错
-答案：A
-96.增进民生福祉是坚持立党为公、执政为民的本质要求，关注人本身的发展是社会主义和资本主义的根本区别之一。（）
-A.对
-B.错
-答案：A
-97.解决好就业问题是民生改善的“温度计”，对国家长治久安具有重要支撑作用。就业是最大的民生工程，因此应当将GDP增长作为发展的根本目的。（）
-A.对
-B.错
-答案：B
-98.收入分配是民生之源，是改善民生、实现发展成果由人民共享最重要最直接的方式。分配制度是促进共同富裕的基础性制度。（）
-A.对
-B.错
-答案：A
-99.我国基本建成了世界上规模最大的社会保障安全网，以社会救助为主体、功能完备的社会保障体系牢牢守护着亿万人民的美好生活。（）
-A.对
-B.错
-答案：B
-100.共建是共同参与社会治理，是社会治理的关键；共治是共同参与社会建设，是社会治理的基础。（）
-A.对
-B.错
-答案：B
-101.坚持系统治理、依法治理、综合治理、源头治理，是新时代加强和创新社会治理的要求。（）
-A.对
-B.错
-答案：A
-102.社会保障是治国安邦的大问题，发挥着民生保障安全网、收入分配调节器、经济运行减震器的作用。（）
-A.对
-B.错
-答案：A
-103.完善社会治理体系，必须坚持共建共治共享的社会治理理念，其中理念是先导，制度是保障，方法手段是重要内容，方式方法是核心和根本。（）
-A.对
-B.错
-答案：B
-104.中国特色社会主义总体布局包含经济建设、政治建设、文化建设、社会建设和生态文明建设。（）
-A.对
-B.错
-答案：A
-105.生态文明是人类社会进步的重大成果，是工业文明发展到一定阶段的产物，是实现人与自然和谐发展的新要求。（）
-A.对
-B.错
-答案：A
-106.生态环境问题归根到底是技术问题，只要加快绿色科技创新，就能从根本上解决生态环境问题。（）
-A.对
-B.错
-答案：B
-107.尊重自然、顺应自然、保护自然，是全面建设社会主义现代化国家的内在要求。（）
-A.对
-B.错
-答案：A
-108.实现碳达峰、碳中和是关乎中华民族永续发展和构建人类命运共同体的重大战略决策，必须在2030年前实现碳中和、2060年前实现碳达峰。（）
-A.对
-B.错
-答案：B
-109.全国生态环境保护大会明确提出“习近平生态文明思想”，并将“八个坚持”概括为推进新时代生态文明建设必须遵循的六项重要原则。（）
-A.对
-B.错
-答案：B
-110.构建以国家公园为主体、自然保护区为基础、各类自然公园为补充的自然保护地体系，是加强生态系统保护的重要举措。（）
-A.对
-B.错
-答案：A
-111.全球环境治理要坚持“共同但有区别的责任”原则，发达国家应该主动承担历史责任，为发展中国家提供资金、技术、能力建设等方面支持。（）
-A.对
-B.错
-答案：A
-112.国家安全是民族复兴的根基，社会稳定是国家强盛的前提。（）
-A.对
-B.错
-答案：A
-113.总体国家安全观以政治安全为宗旨，以人民安全为根本。（）
-A.对
-B.错
-答案：B
-114.塑造国家安全是更高层次、更具前瞻性的维护，统筹维护和塑造国家安全体现了新时代国家安全工作的理论创新和实践特色。（）
-A.对
-B.错
-答案：A
-115.政治安全、人民安全、国家利益至上三者是完全一致的，不存在任何区别。（）
-A.对
-B.错
-答案：B
-116.维护国土安全主要是依靠强大的军事力量，与国民安全没有直接关系。（）
-A.对
-B.错
-答案：B
-117.政治安全是国家安全的生命线，关系党的长期执政和国家的长治久安，决定和影响着国家其他各领域的安全。（）
-A.对
-B.错
-答案：A
-118.维护国家安全是专业安全部门的工作，与普通公民的日常生活关系不大。（）
-A.对
-B.错
-答案：B
-119.统筹发展和安全，以新安全格局保障新发展格局，牢牢守住安全发展这条底线是构建新发展格局的重要前提和保障。（）
-A.对
-B.错
-答案：A
-120.构建新安全格局，必须把维护经济安全作为应对各领域安全风险挑战的首要任务。（）
-A.对
-B.错
-答案：B
-121.听党指挥是决定军队建设的政治方向。（）
-A.对
-B.错
-答案：A
-122.能打胜仗是人民军队的根本职能和军队建设的根本指向。（）
-A.对
-B.错
-答案：A
-123.军政军民团结是实现富国和强军相统一的重要政治保障。（）
-A.对
-B.错
-答案：A
-124.改革是决定人民军队发展壮大、制胜未来的关键一招。（）
-A.对
-B.错
-答案：A
-125.中国国防属于扩张型国防。（）
-A.对
-B.错
-答案：B
-126.依照法律服兵役是公民应尽的国防义务。（）
-A.对
-B.错
-答案：A
-127.中央军委是党和国家最高军事领导机关。（）
-A.对
-B.错
-答案：A
-128.作风优良是人民军队的灵魂。（）
-A.对
-B.错
-答案：B
-129.“两制”从属和派生于“一国”并统一于“一国”之内。（）
-A.对
-B.错
-答案：A
-130.实现祖国完全统一是中华民族伟大复兴的必然要求。（）
-A.对
-B.错
-答案：A
-131.两岸关系发展可以脱离一个中国原则。（）
-A.对
-B.错
-答案：B
-132.支持香港、澳门融入国家发展大局，是“一国两制”的应有之义。（）
-A.对
-B.错
-答案：A
-133.港澳回归后保持长期繁荣稳定。（）
-A.对
-B.错
-答案：A
-134.“一国两制”是中国特色社会主义的伟大创举。（）
-A.对
-B.错
-答案：A
-135.推进两岸交流合作，能够增进两岸同胞福祉。（）
-A.对
-B.错
-答案：A
-136.中国走和平发展道路，是基于国情作出的战略抉择。（）
-A.对
-B.错
-答案：A
-137.周边是我国安身立命、发展繁荣之基。（）
-A.对
-B.错
-答案：A
-138.中国外交秉持真实亲诚理念处理周边关系。（）
-A.对
-B.错
-答案：B
-139.中国外交秉持亲诚惠容的周边外交理念。（）
-A.对
-B.错
-答案：A
-140.文明交往应当坚持文明优越论。（）
-A.对
-B.错
-答案：B
-141.和平、发展、合作、共赢是当今时代潮流。（）
-A.对
-B.错
-答案：A
-142.中国奉行结盟外交政策。（）
-A.对
-B.错
-答案：B
-143.让人民来监督政府是跳出历史周期率的第二个答案。（）
-A.对
-B.错
-答案：B
-144.全面从严治党可以时紧时松、抓抓停停。（）
-A.对
-B.错
-答案：B
-145.新时代好干部要求信念坚定、勤政务实。（）
-A.对
-B.错
-答案：A
-146.全党要增强“四个意识”、坚定“四个自信”、做到“两个维护”。（）
-A.对
-B.错
-答案：A
-多选题
-1.新时代党和国家取得十三个方面历史性成就，领域涵盖（）
-A.全面从严治党、经济建设
-B.生态文明、国防和军队建设
-C.国家安全、外交、“一国两制”
-D.资本主义制度建设
-答案：ABC
-2.新思想的历史定位是（）
-A.当代中国马克思主义
-B.二十一世纪马克思主义
-C.中华文化和中国精神的时代精华
-D. 照搬马列原著的理论
-答案：ABC
-3.“四个自信”具体包含（）
-A.道路自信
-B.理论自信
-C.军事自信
-D.文化自信
-答案：ABD
-4.中国特色社会主义的来源包含（）
-A.改革开放 40 多年实践
-B.新中国 70 多年探索
-C.建党百年奋斗
-D.中华文明五千多年传承
-答案：ABCD
-5.党的基本路线组成要素有（）
-A.以经济建设为中心
-B.坚持四项基本原则
-C.坚持改革开放
-D.实现现代化强国目标
-答案：ABC
-6.推进中国式现代化需遵循的重大原则包含（）
-A.坚持党的全面领导
-B.坚持中国特色社会主义道路
-C.坚持以人民为中心
-D.坚持深化改革开放、发扬斗争精神
-答案：ABCD
-7.推进中国式现代化需要处理好的几对重大关系包含（）
-A.顶层设计与实践探索
-B.守正与创新
-C.效率与公平
-D.自立自强与对外开放
-答案：ABCD
-8.党的领导覆盖我国各项建设，包括（）
-A.“五位一体”各领域建设
-B.国防和军队建设
-C.祖国统一、外交工作
-D.企事业单位日常经营活动
-答案：ABC
-9.党中央设立各类决策议事协调机构，涵盖（）
-A.全面深化改革
-B.经济工作
-C.国家安全
-D.依法治国
-答案：ABCD
-10.扎实推进共同富裕要处理的关系有（）
-A.做大发展蛋糕
-B.合理分配蛋糕
-C.先富带动后富
-D.实现平均富裕
-答案：ABC
-11.群众路线内容概括为（）
-A.一切为了群众
-B.一切依靠群众
-C.从群众中来、到群众中去
-D.群众可以自由进出政府机构
-答案：ABC
-12.全面深化改革必须坚持的正确方向包括（）。
-A.坚持和加强党的全面领导
-B.坚持以人民为中心
-C.坚持进一步解放思想，进一步解放和发展社会生产力，进一步解放和增强社会活力
-D.坚持以资本增殖为主导
-答案：ABC
-13.全面深化改革开放要坚持的正确方法论包括（）。
-A.统筹改革发展稳定
-B.坚持重大改革于法有据
-C.加强顶层设计和摸着石头过河相结合
-D.胆子要大，步子要稳
-答案：ABCD
-14.建设现代化经济体系的主要内容包括（）。
-A.建设创新引领、协同发展的产业体系
-B.建设统一开放、竞争有序的市场体系
-C.建设彰显优势、协调联动的城乡区域发展体系
-D.建设资源节约、环境友好的绿色发展体系
-答案：ABCD
-15.推进供给侧结构性改革的重点任务包括“三去一降一补”，其中“三去”是指（）。
-A.去产能
-B.去库存
-C.去杠杆
-D.去短板
-答案：ABC
-16.落实立德树人根本任务，必须着力解决好的根本问题是（）。
-A.培养什么人
-B.怎样培养人
-C.为谁培养人
-D.谁来培养人
-答案：ABC
-17.深化人才发展体制机制改革，必须破除（）等方面的体制机制障碍。
-A.人才培养
-B.人才使用
-C.人才评价
-D.人才激励
-答案：ABCD
-18.全过程人民民主的环节包括（）。
-A.民主选举
-B.民主协商
-C.民主决策
-D.民主监督
-答案：ABCD
-19.我国的基本政治制度包括（）。
-A.中国共产党领导的多党合作和政治协商制度
-B.民族区域自治制度
-C.基层群众自治制度
-D.人民代表大会制度
-答案：ABC
-20.全面依法治国的基本格局包括（）。
-A.科学立法
-B.严格执法
-C.公正司法
-D.全民守法
-答案：ABCD
-21.坚持依法治国、依法执政、依法行政共同推进，坚持______一体建设。（）
-A.法治国家
-B.法治政府
-C.法治社会
-D.法治经济
-答案：ABC
-22.习近平总书记指出，文化自信是更基础、更广泛、更深厚的自信，是一个国家、一个民族发展中最基本、最深沉、最持久的力量。坚定文化自信的重要意义包括（）。
-A.文化自信是实现中华民族伟大复兴的强大精神力量
-B.文化自信是更基础、更广泛、更深厚的自信
-C.文化自信为国家、民族发展提供最基本、最深沉、最持久的力量
-D.文化自信只是一个文化领域的概念，与其他领域无关
-答案：ABC
-23.建设社会主义文化强国，需要坚持正确的方针原则，主要包括（）。
-A.坚持为人民服务、为社会主义服务的“二为”方向
-B.坚持百花齐放、百家争鸣的“双百”方针
-C.推动中华优秀传统文化创造性转化、创新性发展
-D.忽视人民群众的文化需求
-答案：ABC
-24.社会保障是保障和改善民生、维护社会公平、增进人民福祉的基本制度保障。我国要健全的多层次社会保障体系的基本要求包括（）。
-A.覆盖全民
-B.统筹城乡
-C.公平统一
-D.安全规范
-答案：ABCD
-25.新时代加强和创新社会治理，要坚持（），探索一条符合中国社会发展实际、更可持续的中国特色社会主义社会治理之路。
-A.系统治理
-B.依法治理
-C.综合治理
-D.源头治理
-答案：ABCD
-26.习近平总书记在全国生态环境保护大会上指出，新时代推进生态文明建设，必须坚持好以下哪些重要原则（）？
-A.坚持人与自然和谐共生
-B.绿水青山就是金山银山
-C.良好生态环境是最普惠的民生福祉
-D.以经济建设为中心优先发展工业
-答案：ABC
-27.大自然是人类赖以生存发展的基本条件，（）是全面建设社会主义现代化国家的内在要求。
-A.尊重自然
-B.改造自然
-C.顺应自然
-D.保护自然
-答案：ACD
-28.习近平总书记强调，总结新时代十年的实践经验，分析当前面临的新情况新问题，继续推进生态文明建设，必须以新时代中国特色社会主义生态文明思想为指导，正确处理以下几个重大关系（）？
-A.高质量发展和高水平保护的关系
-B.重点攻坚和协同治理的关系
-C.把发展放在首位、不顾生态环境的关系
-D.自然恢复和人工修复的关系
-答案：ABD
-29.《习近平新时代中国特色社会主义思想概论》第十三章专题讲述“维护和塑造国家安全”，是首次在高校思政课教材中单独设立国家安全章。下列关于统筹维护和塑造国家安全的说法中，正确的是（）。
-A.塑造是更高层次、更具前瞻性的维护
-B.统筹维护和塑造国家安全，体现了新时代国家安全工作的理论创新和实践特色
-C.维护安全是基础，塑造安全是维护安全的延伸和升华
-D.统筹维护和塑造国家安全要求既要确保安全底线，又要主动塑造有利的国家安全战略态势
-答案：ABCD
-30.党的二十大报告强调推进国家安全体系和能力现代化，是新征程上维护国家安全的重要部署。下列选项中，属于推进国家安全体系和能力现代化的重要举措的有（）
-A.健全国家安全体系，完善国家安全法治体系、战略体系、政策体系
-B.加强国家安全能力建设，提高防范化解重大风险的能力
-C.加强国家安全宣传教育，增强全民国家安全意识
-D.健全反制裁、反干涉、反“长臂管辖”机制
-答案：ABCD
-31.（）是全面建设社会主义现代化国家的战略要求。
-A.如期实现建军一百年奋斗目标
-B.加快把人民军队建成世界一流军队
-C.建设生态文明
-D.实施西部大开发
-答案：AB
-32.新时代要着力培养（）的新时代革命军人。
-A.有灵魂
-B.有本事
-C.有血性
-D.有品德
-答案：ABCD
-33.党对军队绝对领导是（）。
-A.独立的
-B.直接的
-C.全面的
-D.松散的
-答案：ABC
-34.全面准确贯彻“一国两制”方针，要坚持（）。
-A.“一国两制”
-B.“港人治港”
-C.“澳人治澳”
-D.高度自治
-答案：ABCD
-35.“一国两制”的实践地区包括（）。
-A.香港
-B.澳门
-C.台湾
-D.深圳
-答案：AB
-36.在处理国际关系和外交关系方面，我们坚持的外交工作布局是（）。
-A.大国是关键
-B.周边是首要
-C.发展中国家是基础
-D.多边是舞台
-答案：ABCD
-37.人类社会和平、进步、发展的永恒主题是（）。
-A.发展而不是倒退
-B.和平而不是战争
-C.合作而不是对抗
-D.共赢而不是零和
-答案：ABCD
-38.新形势下党执政面临的“四大考验”包括（）。
-A.长期执政考验
-B.改革开放考验
-C.市场经济考验
-D.外部环境考验
-答案：ABCD
-39.党的作风建设整治的“四风”包括（）。
-A.形式主义
-B.官僚主义
-C.享乐主义
-D.奢靡之风
-答案：ABCD
-单选题
-1.习近平新时代中国特色社会主义思想创立的根本理论法宝是（）
-A.一个结合
-B.“两个结合”
-C.三个统一
-D.四项原则
-答案：B
-2.党的二十大凝练的习近平新时代中国特色社会主义思想立场观点方法概括为（）
-A.“六个必须坚持”
-B.“十四个坚持”
-C.“十个明确”
-D.“十三个方面成就”
-答案：A
-3.党确立习近平同志党中央的核心、全党的核心地位，确立习近平新时代中国特色社会主义思想指导地位简称（）
-A.“四个意识”
-B.“四个自信”
-C.“两个维护”
-D.“两个确立”
-答案：D
-4.“两个结合”之一是马克思主义基本原理同（）相结合。
-A.中华优秀传统文化
-B.国外先进经验
-C.西方经济学
-D.历史教条
-答案：A
-5.习近平新时代中国特色社会主义思想载入宪法是在（）
-A. 2017年十九大
-B. 2018年十三届全国人大一次会议
-C. 2022年党的二十大
-D.党的十九届六中全会
-答案：B
-6.（）对新时代伟大实践进行了科学总结，全景式展示了习近平新时代中国特色社会主义思想的理论与实践成果。
-A.中国式现代化
-B.“十个明确”
-C.“十三个方面成就”
-D.“两个确立”
-答案：C
-7.学习新思想，青年要把小我融入（），投身民族复兴。
-A.专业学习
-B.祖国大我、人民大我
-C.个人理想
-D.市场经济
-答案：B
-8.以下哪个不属于“五位一体”总体布局的内容（）
-A.经济建设
-B.文化建设
-C.社会建设
-D.国防建设
-答案：D
-9.以下哪个不属于“四个全面”战略布局的内容（）
-A.全面加强练兵备战
-B.全面深化改革
-C.全面依法治国
-D.全面从严治党
-答案：A
-10.我国发展新的历史方位是（）
-A.社会主义建设新时期
-B.中国特色社会主义进入新时代
-C.工业化阶段
-D.全面建成现代化阶段
-答案：B
-11.新时代我国社会主要矛盾是（）
-A.人民物质需要与落后生产矛盾
-B.人民日益增长的美好生活需要和不平衡不充分的发展之间的矛盾
-C.城乡贫富矛盾
-D.产业供需矛盾
-答案：B
-12.（）是更基础、更广泛、更深厚的自信。
-A.道路自信
-B.理论自信
-C.制度自信
-D.文化自信
-答案：D
-13.党在社会主义初级阶段基本路线的兴国之要是（）
-A.四项基本原则
-B.以经济建设为中心
-C.改革开放
-D.共同富裕
-答案：B
-14.中国特色社会主义最本质特征是（）
-A.人民当家作主
-B.中国共产党领导
-C.依法治国
-D.市场经济
-答案：B
-15.实现中华民族伟大复兴唯一正确道路是（）
-A.中国特色社会主义道路
-B.照搬西方道路
-C.传统老路
-D.全盘私有化道路
-答案：A
-16.中国特色社会主义是（），不是其他主义。
-A.民主社会主义
-B.科学社会主义
-C.改良资本主义
-D.空想社会主义
-答案：B
-17.新时代伟大变革在党史等五方面具备（）意义。
-A.阶段性
-B.里程碑
-C.暂时性
-D.局部性
-答案：B
-18.新时代新征程党的中心任务是以（）全面推进中华民族伟大复兴。
-A.改革开放
-B.中国式现代化
-C.全盘西化
-D.集约式发展
-答案：B
-19.我国正式宣告全面建成小康社会时间是（）
-A.2020年7月1日
-B.2021年7月1日
-C.2022年7月1日
-D.2019年7月1日
-答案：B
-20.党的二十大两步走战略，基本实现现代化时间是（）
-A.2025年
-B.2035年
-C.2049年
-D.2030年
-答案：B
-21.本世纪中叶我国奋斗目标是建成（）
-A.中等发达国家
-B.富强民主文明和谐美丽的社会主义现代化强国
-C.工业大国
-D.高福利国家
-答案：B
-22.（）是区别于西方现代化最鲜明的标志，是中国式现代化特色之一。
-A.公有制为主体
-B.乡村振兴
-C.全体人民共同富裕
-D.和平发展
-答案：C
-23.中国式现代化是走（）的现代化，不走殖民掠夺老路。
-A.命运共同体
-B.和平发展
-C.合作共赢
-D.单边主义
-答案：B
-24.（）是中国共产党和中国人民最显著的精神标识，是实现复兴必由之路。
-A.群众路线
-B.团结奋斗
-C.农业发展
-D.自力更生
-答案：B
-25.中国特色社会主义最本质的特征是（）
-A.人民当家作主
-B.中国共产党领导
-C.依法治国
-D.市场经济体制
-答案：B
-26.中国特色社会主义制度的最大优势是（）
-A.中国共产党领导
-B.集中力量办大事
-C.民主集中制
-D.统一战线
-答案：A
-27.我国最大的国情是（）
-A.人口多底子薄
-B.中国共产党的领导
-C.处于初级阶段
-D.地域辽阔
-答案：B
-28.（）是党的领导的最高政治原则。
-A.民主协商
-B.党中央集中统一领导
-C.依法行政
-D.基层自治
-答案：B
-29.“党政军民学，东西南北中，（）”。
-A.法治统揽全局
-B.市场调配资源
-C.政府主导管理
-D.党是领导一切的
-答案：D
-30.“两个维护”的首要内容是坚决维护（）党中央的核心、全党的核心地位。
-A.习近平同志
-B.国家主席
-C.国务院总理
-D.各级党委书记
-答案：A
-31.我国的根本领导制度是（）
-A.人民代表大会制度
-B.基层群众自治制度
-C.党的领导制度
-D.多党合作制度
-答案：C
-32.确保人民当家作主最可靠的保障是（）
-A.完善法律
-B.坚持党的领导
-C.放开选举
-D.强化社会监督
-答案：B
-33.“江山就是人民，人民就是江山，打江山、守江山，守的是（）。”
-A.领土主权
-B.人民的心
-C.经济资源
-D.政权地位
-答案：B
-34.从历史观层面看，（）是历史的创造者、真正的英雄。
-A.中国共产党
-B.地主阶级
-C.人民群众
-D.知识分子
-答案：C
-35.“时代是出卷人，我们是答卷人，（）是阅卷人”。
-A.党员干部
-B.人大代表
-C.人民群众
-D.专家学者
-答案：C
-36.党的生命线和根本工作路线是（）
-A.依法治国路线
-B.群众路线
-C.对外开放
-D.乡村振兴战略
-答案：B
-37.共同富裕的本质要求是（）
-A.全体人民同步富裕
-B.全体人民共同富裕
-C.少数人富裕
-D.优先资本富裕
-答案：B
-38.促进共同富裕分配制度框架不包含（）
-A.初次分配
-B.再分配
-C.平均分配
-D.第三次分配
-答案：C
-39.检验中国共产党一切工作成效的最终评判主体是（）
-A.上级部门
-B.人民群众
-C.行业协会
-D.民主党派
-答案：B
-40.我国分配结构优化目标是形成（）
-A.金字塔型
-B.橄榄型
-C.哑铃型
-D.倒三角型
-答案：B
-41.关于全面深化改革开放，下列说法中正确的是（ ）。
-A.经济体制改革的核心问题是处理好政府与市场的关系，使市场在资源配置中起基础性作用
-B.全面深化改革的总目标是继续完善和发展中国特色社会主义制度，推进国家治理体系和治理能力现代化
-C.改革开放只有经济体制改革一项内容，其他领域不需要同步推进
-D.对外开放就是对发达国家开放，不需要与发展中国家合作
-答案：B
-42.新时代全面深化改革的出发点和落脚点是（）。
-A.促进社会公平正义，增进人民福祉
-B.推动经济高质量发展
-C.完善社会主义市场经济体制
-D.扩大对外开放
-答案：A
-43.全面深化改革的总目标是（）。
-A.建设社会主义现代化强国
-B.完善和发展中国特色社会主义制度、推进国家治理体系和治理能力现代化
-C.实现全体人民共同富裕
-D.构建高水平社会主义市场经济体制
-答案：B
-44.经济体制改革的核心问题是处理好______的关系。
-A.中央和地方
-B.政府和市场
-C.公有制和非公有制
-D.发展和稳定
-答案：B
-45.使市场在资源配置中起______作用，更好发挥政府作用。（）
-A.基础性
-B.决定性
-C.辅助性
-D.补充性
-答案：B
-46.全面深化改革的根本目的是（）。
-A.推动经济高速增长
-B.增强我国国际竞争力
-C.让改革发展成果更多更公平惠及全体人民
-D.完善社会主义制度
-答案：C
-47.全面深化改革必须坚持的正确方法论中，强调加强顶层设计和______相结合。（）
-A.摸着石头过河
-B.大胆试验
-C.基层探索
-D.试点先行
-答案：A
-48.我国改革开放40多年的实践表明，______是决定当代中国命运的关键一招。（）
-A.科技创新
-B.对外开放
-C.改革开放
-D.党的建设
-答案：C
-49.新发展格局是以______为主体、国内国际双循环相互促进。（）
-A.国际大循环
-B.国内大循环
-C.区域循环
-D.产业循环
-答案：B
-50.全面建设社会主义现代化国家的首要任务是（）。
-A.深化改革开放
-B.推动高质量发展
-C.维护国家安全
-D.促进共同富裕
-答案：B
-51.我国经济已由高速增长阶段转向______发展阶段。（）
-A.高质量
-B.中高速
-C.可持续发展
-D.创新驱动
-答案：A
-52.新发展理念中，注重解决发展动力问题的是（）。
-A.协调发展
-B.绿色发展
-C.开放发展
-D.创新发展
-答案：D
-53.新发展理念中，注重解决发展不平衡问题的是（）。
-A.创新发展
-B.协调发展
-C.绿色发展
-D.共享发展
-答案：B
-54.新发展理念中，注重解决发展内外联动问题的是（）。
-A.共享发展
-B.开放发展
-C.协调发展
-D.创新发展
-答案：B
-55.新发展理念中，注重解决社会公平正义问题的是（）。
-A.开放发展
-B.共享发展
-C.绿色发展
-D.协调发展
-答案：B
-56.建设现代化经济体系的战略支撑是（）。
-A.乡村振兴
-B.创新驱动发展战略
-C.区域协调发展
-D.供给侧结构性改革
-答案：B
-57.推进供给侧结构性改革的根本目的是（）。
-A.去产能、去库存
-B.提高社会生产力水平，更好满足人民需要
-C.降成本、补短板
-D.扩大有效投资
-答案：B
-58.科教兴国是我国的（）。
-A.基本国策
-B.基本战略
-C.基本路线
-D.基本方略
-答案：A
-59.教育优先发展重在夯实（）深度开发基础。
-A.人力资源
-B.科技创新
-C.物质资源
-D.制度优势
-答案：A
-60.实现高水平科技自立自强，是我们攀登世界科技高峰的（）。
-A.重要途径
-B.必由之路
-C.辅助手段
-D.战略选择
-答案：B
-61.我国面临的很多“卡脖子”技术问题，根子是（）跟不上。
-A.应用研究
-B.技术研发
-C.基础理论研究
-D.成果转化
-答案：C
-62.发展教育的根本尺度是（）。
-A.科技突破
-B.人民满意
-C.经济贡献
-D.国际排名
-答案：B
-63.在产学研深度融合中，应强化（）的主导地位和科技创新主体地位。
-A.政府
-B.高校
-C.企业
-D.科研院所
-答案：C
-64.建设教育强国是中华民族永续发展的（）。
-A.根本工程
-B.基础工程
-C.先导工程
-D.动力工程
-答案：B
-65.我国教育现代化发展总体水平已跨入（）国家行列。
-A.世界领先
-B.世界中上
-C.世界中等
-D.世界发达
-答案：B
-66.加快建设世界重要人才中心和创新高地，党中央明确到2035年，（）位居世界前列。
-A.国家战略科技力量和高水平人才队伍
-B.全社会研发经费投入
-C.创新人才自主培养能力
-D.高等院校综合排名
-答案：A
-67.社会主义民主政治的本质和核心是（）。
-A.依法治国
-B.党的领导
-C.人民当家作主
-D.民主集中制
-答案：C
-68.全过程人民民主是社会主义民主政治的（）。
-A.本质属性
-B.基本特征
-C.实现形式
-D.制度保障
-答案：A
-69.全过程人民民主不仅要有完整的制度程序，而且要有完整的（）。
-A.法律体系
-B.组织体系
-C.参与实践
-D.监督机制
-答案：C
-70.我国社会主义民主政治中独特的、独有的、独到的民主形式是（）。
-A.民主选举
-B.民主决策
-C.民主管理
-D.协商民主
-答案：D
-71.人民依法行使选举权和被选举权，这属于全过程人民民主中的（）环节。
-A.民主协商
-B.民主选举
-C.民主决策
-D.民主监督
-答案：B
-72.中国人民政治协商会议的性质是（）。
-A.国家权力机关
-B.国家行政机关
-C.爱国统一战线组织
-D.国家监察机关
-答案：C
-73.我国的基本政治制度不包括（）。
-A.中国共产党领导的多党合作和政治协商制度
-B.民族区域自治制度
-C.基层群众自治制度
-D.人民代表大会制度
-答案：D
-74.全面依法治国的总目标是（）。
-A.建设中国特色社会主义法治体系、建设社会主义法治国家
-B.建设社会主义法治政府
-C.完善中国特色社会主义法律体系
-D.推进国家治理体系和治理能力现代化
-答案：A
-75.全面依法治国的总抓手是（）。
-A.建设中国特色社会主义法律体系
-B.建设中国特色社会主义法治体系
-C.健全宪法实施和监督制度
-D.完善司法责任制
-答案：B
-76.中国特色社会主义法治道路的核心要义包括坚持党的领导、坚持中国特色社会主义制度和（）。
-A.坚持依法治国
-B.坚持以人民为中心
-C.贯彻中国特色社会主义法治理论
-D.坚持依法执政
-答案：C
-77.全面依法治国的重点是（）。
-A.科学立法
-B.严格执法
-C.公正司法
-D.全民守法
-答案：B
-78.全面依法治国的生命线是（）。
-A.科学立法
-B.严格执法
-C.公正司法
-D.全民守法
-答案：C
-79.坚持依法治国首先要坚持（）。
-A.依宪治国
-B.依宪执政
-C.依法行政
-D.依法执政
-答案：A
-80.推进全面依法治国，根本目的是（）。
-A.建设法治政府
-B.完善法律体系
-C.依法保障人民权益
-D.维护社会稳定
-答案：C
-81.全面依法治国的关键环节是（）。
-A.科学立法
-B.严格执法
-C.公正司法
-D.全民守法
-答案：D
-82.（）是更基础、更广泛、更深厚的自信，是一个国家、一个民族发展中最基本、最深沉、最持久的力量。
-A.道路自信
-B.理论自信
-C.制度自信
-D.文化自信
-答案：D
-83.坚持马克思主义在意识形态领域指导地位的（），是坚持和巩固我国社会主义制度、保证我国文化建设正确方向的必然要求。
-A.基本制度
-B.根本制度
-C.重要制度
-D.核心制度
-答案：B
-84.文化繁荣兴盛是实现中华民族伟大复兴的（），是建设社会主义现代化强国的应有之义。
-A.物质支撑
-B.政治保障
-C.精神支撑
-D.制度基础
-答案：C
-85.（）是一个民族赖以维系的精神纽带，是一个国家共同的思想道德基础。
-A.意识形态
-B.核心价值观
-C.价值体系
-D.道德规范
-答案：B
-86.社会主义核心价值观在公民个人层面的价值准则是（）
-A.富强、民主、文明、和谐
-B.自由、平等、公正、法治
-C.爱国、敬业、诚信、友善
-D.爱国、进步、民主、科学
-答案：C
-87.（）关乎旗帜、关乎道路、关乎国家政治安全，决定文化前进方向和发展道路。
-A.教育事业
-B.意识形态
-C.民生保障
-D.经济建设
-答案：B
-88.坚持中国特色社会主义文化发展道路，必须坚持“二为”方向。“二为”是指（）
-A.为中国共产党治国理政服务、为建设社会主义现代化国家服务
-B.为人民服务、为社会主义服务
-C.为经济发展服务、为政治建设服务
-D.为改革开放服务、为现代化建设服务
-答案：B
-89.中国特色社会主义文化，源自中华民族五千多年文明历史所孕育的中华优秀传统文化，熔铸于党领导人民在革命、建设、改革中创造的（），植根于中国特色社会主义伟大实践。
-A.革命文化
-B.社会主义先进文化
-C.革命文化和社会主义先进文化
-D.新民主主义文化
-答案：C
-90.（）是坚持立党为公、执政为民的本质要求。
-A.中华民族伟大复兴
-B.增进民生福祉
-C.共同富裕
-D.民生
-答案：B
-91.全面建设社会主义现代化国家，出发点和落脚点是（）。
-A.让人民生活越过越好
-B.为人民服务
-C.社会主义现代化建设
-D.巩固人民民主专政
-答案：A
-92.（）是全面建成小康社会的底线任务，是必须抓紧抓好的第一民生工程。
-A.全面推进健康中国建设
-B.形成橄榄型分配格局
-C.打赢脱贫攻坚战，消除绝对贫困
-D.加大保障房建设投入力度
-答案：C
-93.（）是解决民生问题的“总钥匙”。
-A.保障
-B.扶贫
-C.创新
-D.发展
-答案：D
-94.（）是最基本的民生，是劳动者赖以生存和发展的基础、共享经济发展成果的基本条件，关系到亿万劳动者及其家庭的切身利益。
-A.社会保障
-B.教育
-C.就业
-D.医疗
-答案：C
-95.（）是社会文明进步的基础，是民族昌盛和国家富强的重要标志，是促进人的全面发展的必然要求。
-A.改善民生
-B.社会保障体系
-C.人民健康
-D.就业
-答案：C
-96.理念是完善社会治理体系的先导，必须坚持（）的社会治理理念。
-A.科学实效
-B.系统化专业化
-C.共建共治共享
-D.创新协调发展
-答案：C
-97.（）是关系中华民族永续发展的根本大计，在“五位一体”总体布局中占据重要地位。
-A.经济建设
-B.政治建设
-C.文化建设
-D.生态文明建设
-答案：D
-98.习近平总书记指出，“绿水青山就是金山银山”。这一理念深刻揭示了（）之间的辩证统一关系。
-A.高质量发展与高水平保护
-B.经济快速发展与人民生活水平提升
-C.乡村振兴与新型城镇化
-D.国内发展与对外开放
-答案：A
-99.绿色发展是新发展理念的重要内容。习近平总书记指出，绿色发展，就其要义来讲，是要解决好（）问题。
-A.资源能源消耗
-B.生态修复与治理
-C.人与自然和谐共生
-D.城乡环境差距
-答案：C
-100.我国向国际社会作出庄严承诺，力争（）年前实现碳达峰、（）年前实现碳中和。
-A.2025,2050
-B.2030,2060
-C.2035,2050
-D.2040,2060
-答案：B
-101.习近平总书记在全国生态环境保护大会上指出，继续推进生态文明建设，必须正确处理高质量发展和高水平保护等（）重大关系。
-A.三个
-B.四个
-C.五个
-D.六个
-答案：C
-102.建设生态文明，必须坚持把（）作为重中之重，构建产权清晰、多元参与、激励约束并重、系统完整的生态文明制度体系。
-A.科技创新
-B.教育宣传
-C.制度建设
-D.国际合作
-答案：C
-103.构建以（）为主体、自然保护区为基础、各类自然公园为补充的自然保护地体系，是加强生态系统保护的重要举措。
-A.森林公园
-B.湿地公园
-C.国家公园
-D.地质公园
-答案：C
-104.习近平总书记指出，生态环境问题归根到底是（）问题。
-A.发展方式和生活方式
-B.技术水平和资金投入
-C.法律法规和制度体系
-D.人口规模和资源分布
-答案：A
-105.总体国家安全观的关键是（），强调大安全理念，涵盖政治、军事、经济、文化、科技、网络、生态等多个领域。
-A.安全
-B.发展
-C.总体
-D.统筹
-答案：C
-106.总体国家安全观强调以（）为宗旨，以（）为根本，以经济安全为基础，以军事科技文化社会安全为保障，以促进国际安全为依托。
-A.人民安全，政治安全
-B.政治安全，人民安全
-C.国土安全，国民安全
-D.自身安全，共同安全
-答案：A
-107.（）是国家安全的生命线，关系党的长期执政和国家的长治久安，关系人民幸福和民族复兴。
-A.经济安全
-B.文化安全
-C.政治安全
-D.科技安全
-答案：C
-108.政治安全的核心是（）和（），最根本的是维护党的领导和执政地位、维护中国特色社会主义制度。
-A.政权安全，制度安全
-B.国土安全，国民安全
-C.文化安全，意识形态安全
-D.网络安全，数据安全
-答案：A
-109.坚持总体国家安全观，贯彻“十个坚持”，其中排在第一位的是（）。
-A.坚持以人民安全为宗旨
-B.坚持统筹发展和安全
-C.坚持党对国家安全工作的绝对领导
-D.坚持推进国家安全体系和能力现代化
-答案：C
-110.党的二十大报告首次将国家安全作为专章论述，强调推进国家安全体系和（），以新安全格局保障新发展格局。
-A.能力现代化
-B.治理体系现代化
-C.法治体系建设
-D.干部队伍建设
-答案：A
-111.坚持（）、人民安全、国家利益至上有机统一，是总体国家安全观的核心要义之一。
-A.国土安全
-B.经济安全
-C.政治安全
-D.社会安全
-答案：C
-112.（）是民族复兴的根基，社会稳定是国家强盛的前提。
-A.经济发展
-B.国家安全
-C.文化教育
-D.依法治国
-答案：B
-113.习近平强军思想创造性回答了新时代（）这一重大时代课题。
-A.建设什么样的强大人民军队、怎样建设强大人民军队
-B.坚持和发展什么样的中国特色社会主义、怎样坚持和发展中国特色社会主义
-C.建设什么样的社会主义现代化强国、怎样建设社会主义现代化强国
-D.建设什么样的长期执政的马克思主义政党、怎样建设长期执政的马克思主义政党
-答案：A
-114.把（）作为唯一的根本的标准，是有效履行我军根本职能的内在要求。
-A.政治建军
-B.军事改革
-C.战斗力
-D.军事创新
-答案：C
-115.在新时代的强军目标中，（）是核心。
-A.听党指挥
-B.能打胜仗
-C.作风优良
-D.全面建成世界一流军队
-答案：B
-116.党在新时代的强军目标是建设一支（）的人民军队。
-A.听党指挥、能打胜仗、作风优良
-B.纪律严明、装备精良、敢于斗争
-C.忠诚担当、善谋打仗、清正廉洁
-D.信念坚定、本领过硬、甘于奉献
-答案：A
-117.力争到二〇三五年（）国防和军队现代化，到本世纪中叶把人民军队（）世界一流军队。
-A.全面实现；基本建成
-B.2035年；本世纪中叶
-C.基本实现；基本建成
-D.基本实现；全面建成
-答案：D
-118.（）是党指挥枪原则落地生根的坚实基础。
-A.支部建在排上
-B.支部建在连上
-C.支部建在营上
-D.支部建在团上
-答案：B
-119.国防和军队改革形成军委管总、战区主战、（）新格局。
-A.党委领导
-B.战区主建
-C.军种主战
-D.军种主建
-答案：D
-120.（）是两岸关系的政治基础。
-A.继续推进两岸“三通”
-B.促进两岸人文交流
-C.一个中国原则
-D.协商解决两岸同胞关心的问题
-答案：C
-121.中央依据宪法和基本法对特别行政区拥有（）。
-A.行政管理权
-B.高度自治权
-C.全面管治权
-D.独立的司法权和终审权
-答案：C
-122.香港、澳门先后顺利回归祖国的时间是（）。
-A.1997 1998
-B.1998 1999
-C.1997 1999
-D.1996 1999
-答案：C
-123.（）是习近平总书记亲自谋划、亲自部署、亲自推动的重大国家战略。
-A.“十四五”规划
-B.长江经济带发展
-C.粤港澳大湾区建设
-D.“一带一路”高质量发展
-答案：C
-124.“一国两制”构想在实践中首先被运用于解决（）问题。
-A.台湾
-B.香港、澳门
-C.南海
-D.钓鱼岛
-答案：B
-125.维护（）利益是“一国两制”方针的最高原则。
-A.国家主权、安全、发展
-B.领土完整、民生、社会稳定
-C.地方发展、民众利益
-D.经济发展、社会民生
-答案：A
-126.推进祖国统一进程，必须坚决反对（）分裂行径。
-A.民粹
-B.台独
-C.地方主义
-D.极端主义
-答案：B
-127.坚持以（）为原则推动“一带一路”建设。
-A.平等协商
-B.互利共赢
-C.共商共建
-D.共商共建共享
-答案：D
-128.构建人类命运共同体，核心是建设持久和平、普遍安全、共同繁荣、（）的世界。
-A.合作共赢、持续发展
-B.开放包容、清洁美丽
-C.合作共赢、清洁美丽
-D.开放包容、合作共赢
-答案：B
-129.中国始终坚持（）的外交宗旨。
-A.建设“一带一路”
-B.积极参与全球治理
-C.维护世界和平、促进共同发展
-D.构建人类命运共同体
-答案：C
-130.中国特色大国外交以（）为底线维护国家主权、安全、发展利益。
-A.深化外交布局
-B.公平正义
-C.国家核心利益
-D.国际道义
-答案：C
-131.当今世界格局发展的趋势是（）。
-A.一极独霸世界
-B.两极格局对峙
-C.多极化
-D.单边主义抬头
-答案：C
-132.新型国际关系“新”在（）。
-A.经济发展
-B.合作共赢
-C.开放包容
-D.人类文明
-答案：B
-133.我国将秉持（）的全球治理观，积极参与全球治理体系改革和建设。
-A.相互尊重
-B.公平正义
-C.合作共赢
-D.共商共建共享
-答案：D
-134.坚持以（）为统领加强党对对外工作的集中统一领导。
-A.实现中华民族伟大复兴
-B.维护党中央权威
-C.政治纪律
-D.党中央
-答案：B
-135.全面建设社会主义现代化国家、全面推进中华民族伟大复兴，关键在（）。
-A.人民
-B.政府
-C.党员
-D.党
-答案：D
-136.坚持党要管党、全面从严治党，以党的（）为统领。
-A.政治建设
-B.思想建设
-C.组织建设
-D.作风建设
-答案：A
-137.经过不懈努力，党找到了（）这一跳出治乱兴衰历史周期率的第二个答案。
-A.新发展理念
-B.自我革命
-C.自我完善
-D.总体国家安全观
-答案：B
-138.（）是党的基础性建设。
-A.政治建设
-B.思想建设
-C.制度建设
-D.作风建设
-答案：B
-139.党的政治建设的首要任务是（）。
-A.增强“四个意识”
-B.贯彻“四个全面”
-C.保证全党服从中央，维护党中央权威和集中统一领导
-D.学习创新理论
-答案：C
-140.坚持和加强党的全面领导，以（）为主线。
-A.加强党的长期执政能力建设、先进性和纯洁性建设
-B.党的政治建设
-C.坚定理想信念宗旨
-D.调动全党积极性
-答案：A
-141.一体推进（）是反腐败斗争的基本方针。
-A.不敢腐、不能腐、不想腐
-B.不查腐、不纠腐、不治理
-C.松管理、弱监督、无约束
-D.重形式、轻落实
-答案：A`;
-
-    // 题库解析器
-    const allQuestions = [];
-    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l !== '');
-    let currentType = 'single';
-    let currentQuestion = null;
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line === '判断题') { currentType = 'tf'; continue; } 
-        else if (line === '多选题') { currentType = 'multi'; continue; } 
-        else if (line === '单选题') { currentType = 'single'; continue; }
-
-        const titleMatch = line.match(/^(\d+)\.(.*)/);
-        if (titleMatch) {
-            if (currentQuestion) allQuestions.push(currentQuestion);
-            currentQuestion = {
-                id: currentType + '_' + titleMatch[1],
-                type: currentType,
-                title: line,
-                options: [],
-                answer: ''
-            };
-        } else if (/^[A-D]\./.test(line) || /^[A-D]、/.test(line)) {
-            if (currentQuestion) currentQuestion.options.push(line);
-        } else if (line.startsWith('答案：') || line.startsWith('答案:')) {
-            if (currentQuestion) currentQuestion.answer = line.replace(/答案：|答案:/, '').trim();
-        } else {
-            if (currentQuestion && currentQuestion.options.length === 0 && !line.startsWith('答案')) {
-                currentQuestion.title += '\n' + line;
-            }
-        }
-    }
-    if (currentQuestion) allQuestions.push(currentQuestion);
-
-    // 读取本地存储进度
-    let isMistakeMode = localStorage.getItem('xisi_mode') === 'mistake';
-    let mistakes = JSON.parse(localStorage.getItem('xisi_mistakes')) || [];
-    let currentIndex_all = parseInt(localStorage.getItem('xisi_index_all')) || 0;
-    let currentIndex_mistake = parseInt(localStorage.getItem('xisi_index_mistake')) || 0;
-
-    let currentQuestions = [];
-    let currentIndex = 0;
-    let selectedOptions = [];
-
-    const questionText = document.getElementById('questionText');
-    const optionsContainer = document.getElementById('optionsContainer');
-    const submitBtn = document.getElementById('submitBtn');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const feedback = document.getElementById('feedback');
-    const progress = document.getElementById('progress');
-    const toggleMode = document.getElementById('toggleMode');
-    const qTypeBadge = document.getElementById('qTypeBadge');
-
-    // 保存进度函数
-    function saveProgress() {
-        localStorage.setItem('xisi_mode', isMistakeMode ? 'mistake' : 'all');
-        if (isMistakeMode) {
-            localStorage.setItem('xisi_index_mistake', currentIndex);
-        } else {
-            localStorage.setItem('xisi_index_all', currentIndex);
-        }
+    // 检查题库是否加载成功
+    if (typeof rawText === 'undefined') {
+        document.getElementById('questionText').innerHTML = "<span style='color:red;'>⚠️ 未找到题库数据！请确保 questions.js 文件与 index.html 在同一目录下，且内容格式正确。</span>";
+    } else {
+        initApp();
     }
 
-    // 渲染题目
-    function renderQuestion() {
-        // 容错处理：确保索引不越界
-        if (currentIndex >= currentQuestions.length) currentIndex = 0;
-        
-        if(currentQuestions.length === 0) {
-            questionText.innerText = isMistakeMode ? "太棒了！错题本已经被你清空啦！" : "题库已刷完！";
-            optionsContainer.innerHTML = "";
-            submitBtn.disabled = true;
-            nextBtn.disabled = true;
-            prevBtn.disabled = true;
-            qTypeBadge.innerText = "-";
-            return;
-        }
+    function initApp() {
+        // --- 1. 自动解析题库引擎 ---
+        const allQuestions = [];
+        const lines = rawText.split('\n').map(l => l.trim()).filter(l => l !== '');
+        let currentType = 'single';
+        let currentQuestion = null;
 
-        const q = currentQuestions[currentIndex];
-        progress.innerText = `进度: ${currentIndex + 1} / ${currentQuestions.length}`;
-        qTypeBadge.innerText = q.type === 'tf' ? '判断题' : (q.type === 'single' ? '单选题' : '多选题');
-        qTypeBadge.style.backgroundColor = q.type === 'multi' ? '#fd7e14' : '#007bff';
-        
-        questionText.innerText = q.title;
-        optionsContainer.innerHTML = '';
-        selectedOptions = [];
-        feedback.style.display = "none";
-        
-        // 恢复按钮状态
-        submitBtn.disabled = false;
-        submitBtn.innerText = "提交答案";
-        submitBtn.style.backgroundColor = "#28a745";
-        
-        prevBtn.disabled = currentIndex === 0;
-        nextBtn.disabled = false;
-        nextBtn.innerText = currentIndex === currentQuestions.length - 1 ? "本轮结束" : "下一题";
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line === '判断题') { currentType = 'tf'; continue; } 
+            else if (line === '多选题') { currentType = 'multi'; continue; } 
+            else if (line === '单选题') { currentType = 'single'; continue; }
 
-        // 更新右上角模式按钮
-        if(isMistakeMode) {
-            toggleMode.innerText = "退出错题本";
-            toggleMode.style.color = "#007bff";
-            toggleMode.style.borderColor = "#007bff";
-        } else {
-            toggleMode.innerText = "进入错题本";
-            toggleMode.style.color = "#dc3545";
-            toggleMode.style.borderColor = "#dc3545";
-        }
-
-        q.options.forEach(opt => {
-            const div = document.createElement('div');
-            div.className = 'option';
-            div.innerText = opt;
-            const optLetter = opt.charAt(0);
-            
-            div.onclick = () => {
-                if (submitBtn.disabled) return; // 如果已经提交过，禁止修改
-                if(q.type === 'single' || q.type === 'tf') {
-                    document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
-                    selectedOptions = [optLetter];
-                    div.classList.add('selected');
-                } else { // 多选题逻辑
-                    if(selectedOptions.includes(optLetter)) {
-                        selectedOptions = selectedOptions.filter(item => item !== optLetter);
-                        div.classList.remove('selected');
-                    } else {
-                        selectedOptions.push(optLetter);
-                        selectedOptions.sort();
-                        div.classList.add('selected');
-                    }
+            const titleMatch = line.match(/^(\d+)\.(.*)/);
+            if (titleMatch) {
+                if (currentQuestion) allQuestions.push(currentQuestion);
+                currentQuestion = {
+                    id: currentType + '_' + titleMatch[1],
+                    type: currentType,
+                    title: line,
+                    options: [],
+                    answer: ''
+                };
+            } else if (/^[A-D]\./.test(line) || /^[A-D]、/.test(line)) {
+                if (currentQuestion) currentQuestion.options.push(line);
+            } else if (line.startsWith('答案：') || line.startsWith('答案:')) {
+                if (currentQuestion) currentQuestion.answer = line.replace(/答案：|答案:/, '').trim();
+            } else {
+                if (currentQuestion && currentQuestion.options.length === 0 && !line.startsWith('答案')) {
+                    currentQuestion.title += '\n' + line;
                 }
-            };
-            optionsContainer.appendChild(div);
-        });
-    }
-
-    // 提交按钮逻辑
-    submitBtn.onclick = () => {
-        if(selectedOptions.length === 0) return alert("请先选择答案后再提交！");
-        
-        const q = currentQuestions[currentIndex];
-        const userAnswer = selectedOptions.join('');
-        const isCorrect = userAnswer === q.answer;
-        
-        const optionDivs = document.querySelectorAll('.option');
-        optionDivs.forEach(div => {
-            const letter = div.innerText.charAt(0);
-            if(q.answer.includes(letter)) div.classList.add('correct');
-            if(selectedOptions.includes(letter) && !q.answer.includes(letter)) div.classList.add('wrong');
-        });
-
-        feedback.style.display = "block";
-        if(isCorrect) {
-            feedback.innerText = "✅ 回答正确！";
-            feedback.style.color = "#28a745";
-            feedback.style.backgroundColor = "#d4edda";
-            if(isMistakeMode) {
-                mistakes = mistakes.filter(id => id !== q.id);
-                localStorage.setItem('xisi_mistakes', JSON.stringify(mistakes));
-            }
-        } else {
-            feedback.innerText = `❌ 回答错误。正确答案是: ${q.answer}`;
-            feedback.style.color = "#dc3545";
-            feedback.style.backgroundColor = "#f8d7da";
-            if(!mistakes.includes(q.id)) {
-                mistakes.push(q.id);
-                localStorage.setItem('xisi_mistakes', JSON.stringify(mistakes));
             }
         }
+        if (currentQuestion) allQuestions.push(currentQuestion);
 
-        // 提交后按钮变灰不可点
-        submitBtn.disabled = true;
-        submitBtn.innerText = "已提交";
-        submitBtn.style.backgroundColor = "#a0cbfc";
-    };
+        // --- 2. 状态与逻辑控制 ---
+        let isMistakeMode = false;
+        let isShuffleMode = false;
+        let mistakes = JSON.parse(localStorage.getItem('xisi_mistakes')) || [];
+        let currentQuestions = [];
+        let currentIndex = 0;
+        let selectedOptions = [];
 
-    // 上一题按钮逻辑
-    prevBtn.onclick = () => {
-        if (currentIndex > 0) {
-            currentIndex--;
-            saveProgress();
+        const questionText = document.getElementById('questionText');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const submitBtn = document.getElementById('submitBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const feedback = document.getElementById('feedback');
+        const progress = document.getElementById('progress');
+        const toggleMode = document.getElementById('toggleMode');
+        const toggleShuffle = document.getElementById('toggleShuffle');
+        const qTypeBadge = document.getElementById('qTypeBadge');
+
+        // 洗牌算法 (乱序)
+        function shuffleArray(arr) {
+            let array = [...arr];
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 保存当前所有状态（含乱序后的排列顺序）
+        function saveState() {
+            localStorage.setItem('xisi_app_state', JSON.stringify({
+                isMistakeMode,
+                isShuffleMode,
+                currentIndex,
+                order: currentQuestions.map(q => q.id)
+            }));
+        }
+
+        // 读取状态
+        function loadState() {
+            const state = JSON.parse(localStorage.getItem('xisi_app_state'));
+            if (state && state.order && state.order.length > 0) {
+                isMistakeMode = state.isMistakeMode;
+                isShuffleMode = state.isShuffleMode;
+                currentIndex = state.currentIndex;
+                
+                // 根据保存的 ID 还原题目列表（防止乱序刷新后顺序丢失）
+                currentQuestions = state.order.map(id => allQuestions.find(q => q.id === id)).filter(Boolean);
+                
+                if (currentQuestions.length === 0) resetAndApply();
+            } else {
+                resetAndApply();
+            }
+            updateUI();
             renderQuestion();
         }
-    };
 
-    // 下一题按钮逻辑
-    nextBtn.onclick = () => {
-        if (currentIndex >= currentQuestions.length - 1) {
-            alert("这一轮刷完啦！");
-            if (isMistakeMode) {
-                // 刷新错题本列表，移除刚才答对的题
-                currentQuestions = allQuestions.filter(q => mistakes.includes(q.id));
-                currentIndex = 0;
-                if (currentQuestions.length === 0) {
-                    toggleMode.click(); // 错题清空，自动退出错题模式
-                    return;
+        // 重新应用过滤和排序规则
+        function resetAndApply() {
+            let base = isMistakeMode ? allQuestions.filter(q => mistakes.includes(q.id)) : [...allQuestions];
+            
+            if (base.length === 0 && isMistakeMode) {
+                alert("错题本已经被你清空啦！将返回全部题库。");
+                isMistakeMode = false;
+                base = [...allQuestions];
+            }
+
+            if (isShuffleMode) {
+                base = shuffleArray(base);
+            }
+            
+            currentQuestions = base;
+            currentIndex = 0;
+            saveState();
+            updateUI();
+        }
+
+        function updateUI() {
+            toggleShuffle.innerText = isShuffleMode ? "🔀 乱序" : "⬇️ 顺序";
+            toggleShuffle.style.color = isShuffleMode ? "#8540f5" : "#007bff";
+            toggleShuffle.style.borderColor = isShuffleMode ? "#8540f5" : "#007bff";
+
+            toggleMode.innerText = isMistakeMode ? "退出错题本" : "进入错题本";
+            toggleMode.style.color = isMistakeMode ? "#dc3545" : "#6c757d";
+            toggleMode.style.borderColor = isMistakeMode ? "#dc3545" : "#6c757d";
+        }
+
+        function renderQuestion() {
+            if (currentIndex >= currentQuestions.length) currentIndex = 0;
+            if(currentQuestions.length === 0) return;
+
+            const q = currentQuestions[currentIndex];
+            progress.innerText = `进度: ${currentIndex + 1} / ${currentQuestions.length}`;
+            qTypeBadge.innerText = q.type === 'tf' ? '判断题' : (q.type === 'single' ? '单选题' : '多选题');
+            qTypeBadge.style.backgroundColor = q.type === 'multi' ? '#fd7e14' : '#007bff';
+            
+            questionText.innerText = q.title;
+            optionsContainer.innerHTML = '';
+            selectedOptions = [];
+            feedback.style.display = "none";
+            
+            submitBtn.disabled = false;
+            submitBtn.innerText = "提交答案";
+            submitBtn.style.backgroundColor = "#28a745";
+            
+            prevBtn.disabled = currentIndex === 0;
+            nextBtn.innerText = currentIndex === currentQuestions.length - 1 ? "本轮结束" : "下一题";
+
+            q.options.forEach(opt => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.innerText = opt;
+                const optLetter = opt.charAt(0);
+                
+                div.onclick = () => {
+                    if (submitBtn.disabled) return;
+                    if(q.type === 'single' || q.type === 'tf') {
+                        document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+                        selectedOptions = [optLetter];
+                        div.classList.add('selected');
+                    } else {
+                        if(selectedOptions.includes(optLetter)) {
+                            selectedOptions = selectedOptions.filter(item => item !== optLetter);
+                            div.classList.remove('selected');
+                        } else {
+                            selectedOptions.push(optLetter);
+                            selectedOptions.sort();
+                            div.classList.add('selected');
+                        }
+                    }
+                };
+                optionsContainer.appendChild(div);
+            });
+        }
+
+        // --- 3. 按钮绑定事件 ---
+        toggleShuffle.onclick = (e) => {
+            e.preventDefault();
+            isShuffleMode = !isShuffleMode;
+            resetAndApply();
+            renderQuestion();
+        };
+
+        toggleMode.onclick = (e) => {
+            e.preventDefault();
+            isMistakeMode = !isMistakeMode;
+            resetAndApply();
+            renderQuestion();
+        };
+
+        submitBtn.onclick = () => {
+            if(selectedOptions.length === 0) return alert("请先选择答案后再提交！");
+            
+            const q = currentQuestions[currentIndex];
+            const userAnswer = selectedOptions.join('');
+            const isCorrect = userAnswer === q.answer;
+            
+            const optionDivs = document.querySelectorAll('.option');
+            optionDivs.forEach(div => {
+                const letter = div.innerText.charAt(0);
+                if(q.answer.includes(letter)) div.classList.add('correct');
+                if(selectedOptions.includes(letter) && !q.answer.includes(letter)) div.classList.add('wrong');
+            });
+
+            feedback.style.display = "block";
+            if(isCorrect) {
+                feedback.innerText = "✅ 回答正确！";
+                feedback.style.color = "#28a745";
+                feedback.style.backgroundColor = "#d4edda";
+                if(isMistakeMode) {
+                    mistakes = mistakes.filter(id => id !== q.id);
+                    localStorage.setItem('xisi_mistakes', JSON.stringify(mistakes));
                 }
             } else {
-                currentIndex = 0;
+                feedback.innerText = `❌ 回答错误。正确答案是: ${q.answer}`;
+                feedback.style.color = "#dc3545";
+                feedback.style.backgroundColor = "#f8d7da";
+                if(!mistakes.includes(q.id)) {
+                    mistakes.push(q.id);
+                    localStorage.setItem('xisi_mistakes', JSON.stringify(mistakes));
+                }
             }
-        } else {
-            currentIndex++;
-        }
-        saveProgress();
-        renderQuestion();
-    };
 
-    // 切换模式逻辑
-    toggleMode.onclick = (e) => {
-        e?.preventDefault();
-        isMistakeMode = !isMistakeMode;
-        
-        if(isMistakeMode) {
-            currentQuestions = allQuestions.filter(q => mistakes.includes(q.id));
-            if(currentQuestions.length === 0) {
-                alert("太棒了！错题本空空如也，快去全部题库里找点乐子吧！");
-                isMistakeMode = false;
-                currentQuestions = allQuestions;
-                return;
+            submitBtn.disabled = true;
+            submitBtn.innerText = "已提交";
+            submitBtn.style.backgroundColor = "#a0cbfc";
+        };
+
+        prevBtn.onclick = () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                saveState();
+                renderQuestion();
             }
-            // 切换到错题本，读取错题本进度
-            currentIndex = currentIndex_mistake;
-        } else {
-            currentQuestions = allQuestions;
-            // 切换到全部题库，读取全部题库进度
-            currentIndex = currentIndex_all;
-        }
-        saveProgress();
-        renderQuestion();
-    };
+        };
 
-    // 初始化运行
-    if(isMistakeMode) {
-        currentQuestions = allQuestions.filter(q => mistakes.includes(q.id));
-        currentIndex = currentIndex_mistake;
-        if(currentQuestions.length === 0) {
-            isMistakeMode = false;
-            currentQuestions = allQuestions;
-            currentIndex = currentIndex_all;
-        }
-    } else {
-        currentQuestions = allQuestions;
-        currentIndex = currentIndex_all;
+        nextBtn.onclick = () => {
+            if (currentIndex >= currentQuestions.length - 1) {
+                alert("恭喜你，这一轮刷完啦！将自动生成新一轮的列表。");
+                resetAndApply(); // 刷完一轮后重新获取列表并洗牌
+            } else {
+                currentIndex++;
+            }
+            saveState();
+            renderQuestion();
+        };
+
+        // 启动时读取本地状态
+        loadState();
     }
-    
-    renderQuestion();
 </script>
 </body>
 </html>
