@@ -3,21 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>期末考前突击 - 刷题神器 (乱序分离版)</title>
+    <title>期末考前突击 - 刷题神器 (完美数据版)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f7f9fc; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; line-height: 1.6; }
-        .card { background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); margin-top: 20px; }
-        .stats { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 0.9em; color: #666; border-bottom: 1px solid #eee; padding-bottom: 15px; flex-wrap: wrap; gap: 10px; }
-        .badge { background: #007bff; color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85em; }
+        .card { background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); margin-top: 15px; }
+        
+        /* 顶部状态栏 */
+        .stats { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 0.9em; color: #666; flex-wrap: wrap; gap: 10px; }
+        .badge { background: #007bff; color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85em; transition: background 0.3s; }
         .controls { display: flex; gap: 10px; }
         .mode-btn { font-weight: bold; text-decoration: none; border: 1px solid currentColor; padding: 4px 12px; border-radius: 12px; transition: 0.2s; font-size: 0.9em; }
         .mode-btn:hover { opacity: 0.8; }
+        
+        /* 新增：得分统计看板 */
+        .scoreboard { display: flex; justify-content: space-between; background: #f8f9fa; padding: 12px 18px; border-radius: 12px; margin-bottom: 20px; font-weight: bold; font-size: 0.95em; border: 1px solid #e9ecef; }
+        .score-item { display: flex; align-items: center; gap: 5px; }
+        .s-correct { color: #28a745; }
+        .s-wrong { color: #dc3545; }
+        .s-unanswered { color: #6c757d; }
+
         .question { font-size: 1.15em; font-weight: bold; margin-bottom: 20px; }
         .option { display: block; background: #f8f9fa; padding: 14px 16px; margin-bottom: 12px; border-radius: 10px; cursor: pointer; transition: 0.2s; border: 2px solid transparent; word-wrap: break-word; }
         .option:hover { background: #e9ecef; }
         .option.selected { border-color: #28a745; background: #eafaf1; }
         .option.correct { border-color: #28a745; background: #d4edda; color: #155724; font-weight: bold; }
         .option.wrong { border-color: #dc3545; background: #f8d7da; color: #721c24; text-decoration: line-through; }
+        
         .btn-group { display: flex; justify-content: space-between; margin-top: 25px; gap: 10px; }
         button { padding: 12px 0; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold; flex: 1; transition: 0.2s; }
         button:active { transform: scale(0.96); }
@@ -41,6 +52,13 @@
             <a href="#" id="toggleMode" class="mode-btn">进入错题本</a>
         </div>
     </div>
+    
+    <div class="scoreboard">
+        <div class="score-item s-correct">✅ 正确: <span id="countCorrect">0</span></div>
+        <div class="score-item s-wrong">❌ 错误: <span id="countWrong">0</span></div>
+        <div class="score-item s-unanswered">⚪ 未做: <span id="countUnanswered">0</span></div>
+    </div>
+
     <div class="question" id="questionText">正在加载题库，请稍候...</div>
     <div id="optionsContainer"></div>
     <div class="feedback" id="feedback"></div>
@@ -55,15 +73,14 @@
 <script src="questions.js"></script>
 
 <script>
-    // 检查题库是否加载成功
     if (typeof rawText === 'undefined') {
-        document.getElementById('questionText').innerHTML = "<span style='color:red;'>⚠️ 未找到题库数据！请确保 questions.js 文件与 index.html 在同一目录下，且内容格式正确。</span>";
+        document.getElementById('questionText').innerHTML = "<span style='color:red;'>⚠️ 未找到题库数据！请确保 questions.js 文件与 index.html 在同一目录下。</span>";
     } else {
         initApp();
     }
 
     function initApp() {
-        // --- 1. 自动解析题库引擎 ---
+        // --- 1. 自动解析题库 ---
         const allQuestions = [];
         const lines = rawText.split('\n').map(l => l.trim()).filter(l => l !== '');
         let currentType = 'single';
@@ -97,13 +114,14 @@
         }
         if (currentQuestion) allQuestions.push(currentQuestion);
 
-        // --- 2. 状态与逻辑控制 ---
+        // --- 2. 状态控制 ---
         let isMistakeMode = false;
         let isShuffleMode = false;
         let mistakes = JSON.parse(localStorage.getItem('xisi_mistakes')) || [];
         let currentQuestions = [];
         let currentIndex = 0;
         let selectedOptions = [];
+        let sessionResults = {}; // 新增：记录当前轮次每道题的作答情况 (correct / wrong)
 
         const questionText = document.getElementById('questionText');
         const optionsContainer = document.getElementById('optionsContainer');
@@ -116,7 +134,7 @@
         const toggleShuffle = document.getElementById('toggleShuffle');
         const qTypeBadge = document.getElementById('qTypeBadge');
 
-        // 洗牌算法 (乱序)
+        // 洗牌算法
         function shuffleArray(arr) {
             let array = [...arr];
             for (let i = array.length - 1; i > 0; i--) {
@@ -126,12 +144,13 @@
             return array;
         }
 
-        // 保存当前所有状态（含乱序后的排列顺序）
+        // 保存当前所有状态
         function saveState() {
             localStorage.setItem('xisi_app_state', JSON.stringify({
                 isMistakeMode,
                 isShuffleMode,
                 currentIndex,
+                sessionResults, // 新增：保存作答记录
                 order: currentQuestions.map(q => q.id)
             }));
         }
@@ -143,19 +162,19 @@
                 isMistakeMode = state.isMistakeMode;
                 isShuffleMode = state.isShuffleMode;
                 currentIndex = state.currentIndex;
+                sessionResults = state.sessionResults || {}; // 恢复作答记录
                 
-                // 根据保存的 ID 还原题目列表（防止乱序刷新后顺序丢失）
                 currentQuestions = state.order.map(id => allQuestions.find(q => q.id === id)).filter(Boolean);
-                
                 if (currentQuestions.length === 0) resetAndApply();
             } else {
                 resetAndApply();
             }
             updateUI();
+            updateScoreBoard();
             renderQuestion();
         }
 
-        // 重新应用过滤和排序规则
+        // 重新生成题库并清空进度
         function resetAndApply() {
             let base = isMistakeMode ? allQuestions.filter(q => mistakes.includes(q.id)) : [...allQuestions];
             
@@ -171,8 +190,25 @@
             
             currentQuestions = base;
             currentIndex = 0;
+            sessionResults = {}; // 重置时清空统计数据
+            
             saveState();
             updateUI();
+            updateScoreBoard();
+        }
+
+        // 新增：更新得分面板数据
+        function updateScoreBoard() {
+            let correct = 0, wrong = 0;
+            currentQuestions.forEach(q => {
+                if (sessionResults[q.id] === 'correct') correct++;
+                else if (sessionResults[q.id] === 'wrong') wrong++;
+            });
+            const unanswered = currentQuestions.length - correct - wrong;
+
+            document.getElementById('countCorrect').innerText = correct;
+            document.getElementById('countWrong').innerText = wrong;
+            document.getElementById('countUnanswered').innerText = unanswered;
         }
 
         function updateUI() {
@@ -191,8 +227,22 @@
 
             const q = currentQuestions[currentIndex];
             progress.innerText = `进度: ${currentIndex + 1} / ${currentQuestions.length}`;
-            qTypeBadge.innerText = q.type === 'tf' ? '判断题' : (q.type === 'single' ? '单选题' : '多选题');
-            qTypeBadge.style.backgroundColor = q.type === 'multi' ? '#fd7e14' : '#007bff';
+            
+            // 设置标签文字
+            let baseLabel = q.type === 'tf' ? '判断题' : (q.type === 'single' ? '单选题' : '多选题');
+            let baseColor = q.type === 'multi' ? '#fd7e14' : '#007bff';
+            
+            // 贴心小功能：如果这题这轮做过了，标签会有提示
+            if (sessionResults[q.id] === 'correct') {
+                qTypeBadge.innerText = baseLabel + ' (已答对)';
+                qTypeBadge.style.backgroundColor = '#28a745';
+            } else if (sessionResults[q.id] === 'wrong') {
+                qTypeBadge.innerText = baseLabel + ' (已答错)';
+                qTypeBadge.style.backgroundColor = '#dc3545';
+            } else {
+                qTypeBadge.innerText = baseLabel;
+                qTypeBadge.style.backgroundColor = baseColor;
+            }
             
             questionText.innerText = q.title;
             optionsContainer.innerHTML = '';
@@ -213,7 +263,7 @@
                 const optLetter = opt.charAt(0);
                 
                 div.onclick = () => {
-                    if (submitBtn.disabled) return;
+                    if (submitBtn.disabled) return; // 如果已提交则禁用点击
                     if(q.type === 'single' || q.type === 'tf') {
                         document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
                         selectedOptions = [optLetter];
@@ -236,6 +286,7 @@
         // --- 3. 按钮绑定事件 ---
         toggleShuffle.onclick = (e) => {
             e.preventDefault();
+            if(!confirm("切换排序模式会重新开启新的一轮，当前进度将重置，是否继续？")) return;
             isShuffleMode = !isShuffleMode;
             resetAndApply();
             renderQuestion();
@@ -255,6 +306,10 @@
             const userAnswer = selectedOptions.join('');
             const isCorrect = userAnswer === q.answer;
             
+            // 标记记录
+            sessionResults[q.id] = isCorrect ? 'correct' : 'wrong';
+            updateScoreBoard(); // 实时更新计分板
+            
             const optionDivs = document.querySelectorAll('.option');
             optionDivs.forEach(div => {
                 const letter = div.innerText.charAt(0);
@@ -267,6 +322,8 @@
                 feedback.innerText = "✅ 回答正确！";
                 feedback.style.color = "#28a745";
                 feedback.style.backgroundColor = "#d4edda";
+                
+                // 从错题本移除
                 if(isMistakeMode) {
                     mistakes = mistakes.filter(id => id !== q.id);
                     localStorage.setItem('xisi_mistakes', JSON.stringify(mistakes));
@@ -275,6 +332,8 @@
                 feedback.innerText = `❌ 回答错误。正确答案是: ${q.answer}`;
                 feedback.style.color = "#dc3545";
                 feedback.style.backgroundColor = "#f8d7da";
+                
+                // 记入错题本
                 if(!mistakes.includes(q.id)) {
                     mistakes.push(q.id);
                     localStorage.setItem('xisi_mistakes', JSON.stringify(mistakes));
@@ -284,6 +343,8 @@
             submitBtn.disabled = true;
             submitBtn.innerText = "已提交";
             submitBtn.style.backgroundColor = "#a0cbfc";
+            
+            saveState(); // 保存最新状态
         };
 
         prevBtn.onclick = () => {
@@ -297,7 +358,7 @@
         nextBtn.onclick = () => {
             if (currentIndex >= currentQuestions.length - 1) {
                 alert("恭喜你，这一轮刷完啦！将自动生成新一轮的列表。");
-                resetAndApply(); // 刷完一轮后重新获取列表并洗牌
+                resetAndApply(); 
             } else {
                 currentIndex++;
             }
@@ -305,7 +366,7 @@
             renderQuestion();
         };
 
-        // 启动时读取本地状态
+        // 启动应用
         loadState();
     }
 </script>
