@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>期末考前突击 - 刷题神器</title>
+    <title>期末考前突击 - 刷题神器 (进度保存版)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f7f9fc; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; line-height: 1.6; }
         .card { background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); margin-top: 20px; }
@@ -14,14 +14,16 @@
         .question { font-size: 1.15em; font-weight: bold; margin-bottom: 20px; }
         .option { display: block; background: #f8f9fa; padding: 14px 16px; margin-bottom: 12px; border-radius: 10px; cursor: pointer; transition: 0.2s; border: 2px solid transparent; word-wrap: break-word; }
         .option:hover { background: #e9ecef; }
-        .option.selected { border-color: #007bff; background: #e7f1ff; }
+        .option.selected { border-color: #28a745; background: #eafaf1; }
         .option.correct { border-color: #28a745; background: #d4edda; color: #155724; font-weight: bold; }
         .option.wrong { border-color: #dc3545; background: #f8d7da; color: #721c24; text-decoration: line-through; }
-        .btn-group { display: flex; justify-content: center; margin-top: 25px; gap: 15px; }
-        button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold; width: 100%; transition: 0.2s; }
-        .btn-primary { background: #007bff; color: white; box-shadow: 0 4px 12px rgba(0,123,255,0.3); }
-        .btn-primary:active { transform: scale(0.98); }
-        .btn-secondary { background: #28a745; color: white; box-shadow: 0 4px 12px rgba(40,167,69,0.3); }
+        .btn-group { display: flex; justify-content: space-between; margin-top: 25px; gap: 10px; }
+        button { padding: 12px 0; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold; flex: 1; transition: 0.2s; }
+        button:active { transform: scale(0.96); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none !important; }
+        .btn-prev { background: #6c757d; color: white; }
+        .btn-submit { background: #28a745; color: white; box-shadow: 0 4px 12px rgba(40,167,69,0.3); }
+        .btn-next { background: #007bff; color: white; box-shadow: 0 4px 12px rgba(0,123,255,0.3); }
         .feedback { margin-top: 20px; font-weight: bold; text-align: center; font-size: 1.1em; display: none; padding: 10px; border-radius: 8px; }
     </style>
 </head>
@@ -36,14 +38,17 @@
     <div class="question" id="questionText">正在解析题库，请稍候...</div>
     <div id="optionsContainer"></div>
     <div class="feedback" id="feedback"></div>
+    
+    <!-- 全新导航按钮组 -->
     <div class="btn-group">
-        <button class="btn-primary" id="submitBtn">提交答案</button>
-        <button class="btn-secondary" id="nextBtn" style="display: none;">下一题</button>
+        <button class="btn-prev" id="prevBtn">上一题</button>
+        <button class="btn-submit" id="submitBtn">提交答案</button>
+        <button class="btn-next" id="nextBtn">下一题</button>
     </div>
 </div>
 
 <script>
-    // 直接内嵌你提供的所有题目文本（已补充单选71题答案）
+    // 题库文本 (包含全部326题)
     const rawText = `判断题
 1.习近平新时代中国特色社会主义思想是党和人民集体智慧的结晶。（）
 A.对
@@ -1720,7 +1725,6 @@ D.重形式、轻落实
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-
         if (line === '判断题') { currentType = 'tf'; continue; } 
         else if (line === '多选题') { currentType = 'multi'; continue; } 
         else if (line === '单选题') { currentType = 'single'; continue; }
@@ -1747,28 +1751,47 @@ D.重形式、轻落实
     }
     if (currentQuestion) allQuestions.push(currentQuestion);
 
-    // 刷题核心逻辑
-    let currentQuestions = allQuestions;
-    let currentIndex = 0;
-    let isMistakeMode = false;
-    let selectedOptions = [];
+    // 读取本地存储进度
+    let isMistakeMode = localStorage.getItem('xisi_mode') === 'mistake';
     let mistakes = JSON.parse(localStorage.getItem('xisi_mistakes')) || [];
+    let currentIndex_all = parseInt(localStorage.getItem('xisi_index_all')) || 0;
+    let currentIndex_mistake = parseInt(localStorage.getItem('xisi_index_mistake')) || 0;
+
+    let currentQuestions = [];
+    let currentIndex = 0;
+    let selectedOptions = [];
 
     const questionText = document.getElementById('questionText');
     const optionsContainer = document.getElementById('optionsContainer');
     const submitBtn = document.getElementById('submitBtn');
+    const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const feedback = document.getElementById('feedback');
     const progress = document.getElementById('progress');
     const toggleMode = document.getElementById('toggleMode');
     const qTypeBadge = document.getElementById('qTypeBadge');
 
+    // 保存进度函数
+    function saveProgress() {
+        localStorage.setItem('xisi_mode', isMistakeMode ? 'mistake' : 'all');
+        if (isMistakeMode) {
+            localStorage.setItem('xisi_index_mistake', currentIndex);
+        } else {
+            localStorage.setItem('xisi_index_all', currentIndex);
+        }
+    }
+
+    // 渲染题目
     function renderQuestion() {
+        // 容错处理：确保索引不越界
+        if (currentIndex >= currentQuestions.length) currentIndex = 0;
+        
         if(currentQuestions.length === 0) {
             questionText.innerText = isMistakeMode ? "太棒了！错题本已经被你清空啦！" : "题库已刷完！";
             optionsContainer.innerHTML = "";
-            submitBtn.style.display = "none";
-            nextBtn.style.display = "none";
+            submitBtn.disabled = true;
+            nextBtn.disabled = true;
+            prevBtn.disabled = true;
             qTypeBadge.innerText = "-";
             return;
         }
@@ -1782,8 +1805,26 @@ D.重形式、轻落实
         optionsContainer.innerHTML = '';
         selectedOptions = [];
         feedback.style.display = "none";
-        submitBtn.style.display = "block";
-        nextBtn.style.display = "none";
+        
+        // 恢复按钮状态
+        submitBtn.disabled = false;
+        submitBtn.innerText = "提交答案";
+        submitBtn.style.backgroundColor = "#28a745";
+        
+        prevBtn.disabled = currentIndex === 0;
+        nextBtn.disabled = false;
+        nextBtn.innerText = currentIndex === currentQuestions.length - 1 ? "本轮结束" : "下一题";
+
+        // 更新右上角模式按钮
+        if(isMistakeMode) {
+            toggleMode.innerText = "退出错题本";
+            toggleMode.style.color = "#007bff";
+            toggleMode.style.borderColor = "#007bff";
+        } else {
+            toggleMode.innerText = "进入错题本";
+            toggleMode.style.color = "#dc3545";
+            toggleMode.style.borderColor = "#dc3545";
+        }
 
         q.options.forEach(opt => {
             const div = document.createElement('div');
@@ -1792,11 +1833,12 @@ D.重形式、轻落实
             const optLetter = opt.charAt(0);
             
             div.onclick = () => {
+                if (submitBtn.disabled) return; // 如果已经提交过，禁止修改
                 if(q.type === 'single' || q.type === 'tf') {
                     document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
                     selectedOptions = [optLetter];
                     div.classList.add('selected');
-                } else {
+                } else { // 多选题逻辑
                     if(selectedOptions.includes(optLetter)) {
                         selectedOptions = selectedOptions.filter(item => item !== optLetter);
                         div.classList.remove('selected');
@@ -1811,8 +1853,9 @@ D.重形式、轻落实
         });
     }
 
+    // 提交按钮逻辑
     submitBtn.onclick = () => {
-        if(selectedOptions.length === 0) return alert("请先选择答案！");
+        if(selectedOptions.length === 0) return alert("请先选择答案后再提交！");
         
         const q = currentQuestions[currentIndex];
         const userAnswer = selectedOptions.join('');
@@ -1820,7 +1863,6 @@ D.重形式、轻落实
         
         const optionDivs = document.querySelectorAll('.option');
         optionDivs.forEach(div => {
-            div.onclick = null;
             const letter = div.innerText.charAt(0);
             if(q.answer.includes(letter)) div.classList.add('correct');
             if(selectedOptions.includes(letter) && !q.answer.includes(letter)) div.classList.add('wrong');
@@ -1845,51 +1887,81 @@ D.重形式、轻落实
             }
         }
 
-        submitBtn.style.display = "none";
-        nextBtn.style.display = "block";
+        // 提交后按钮变灰不可点
+        submitBtn.disabled = true;
+        submitBtn.innerText = "已提交";
+        submitBtn.style.backgroundColor = "#a0cbfc";
     };
 
+    // 上一题按钮逻辑
+    prevBtn.onclick = () => {
+        if (currentIndex > 0) {
+            currentIndex--;
+            saveProgress();
+            renderQuestion();
+        }
+    };
+
+    // 下一题按钮逻辑
     nextBtn.onclick = () => {
-        currentIndex++;
-        if(currentIndex >= currentQuestions.length) {
+        if (currentIndex >= currentQuestions.length - 1) {
             alert("这一轮刷完啦！");
-            if(isMistakeMode) {
+            if (isMistakeMode) {
+                // 刷新错题本列表，移除刚才答对的题
                 currentQuestions = allQuestions.filter(q => mistakes.includes(q.id));
-                if(currentQuestions.length === 0) {
-                    toggleMode.click();
+                currentIndex = 0;
+                if (currentQuestions.length === 0) {
+                    toggleMode.click(); // 错题清空，自动退出错题模式
                     return;
                 }
+            } else {
+                currentIndex = 0;
             }
-            currentIndex = 0;
+        } else {
+            currentIndex++;
         }
+        saveProgress();
         renderQuestion();
     };
 
+    // 切换模式逻辑
     toggleMode.onclick = (e) => {
         e?.preventDefault();
         isMistakeMode = !isMistakeMode;
+        
         if(isMistakeMode) {
             currentQuestions = allQuestions.filter(q => mistakes.includes(q.id));
             if(currentQuestions.length === 0) {
-                alert("太棒了！错题本空空如也，无需复习错题！");
+                alert("太棒了！错题本空空如也，快去全部题库里找点乐子吧！");
                 isMistakeMode = false;
                 currentQuestions = allQuestions;
                 return;
             }
-            toggleMode.innerText = "返回全部题库";
-            toggleMode.style.color = "#007bff";
-            toggleMode.style.borderColor = "#007bff";
+            // 切换到错题本，读取错题本进度
+            currentIndex = currentIndex_mistake;
         } else {
             currentQuestions = allQuestions;
-            toggleMode.innerText = "进入错题本模式";
-            toggleMode.style.color = "#dc3545";
-            toggleMode.style.borderColor = "#dc3545";
+            // 切换到全部题库，读取全部题库进度
+            currentIndex = currentIndex_all;
         }
-        currentIndex = 0;
+        saveProgress();
         renderQuestion();
     };
 
-    // 初始化
+    // 初始化运行
+    if(isMistakeMode) {
+        currentQuestions = allQuestions.filter(q => mistakes.includes(q.id));
+        currentIndex = currentIndex_mistake;
+        if(currentQuestions.length === 0) {
+            isMistakeMode = false;
+            currentQuestions = allQuestions;
+            currentIndex = currentIndex_all;
+        }
+    } else {
+        currentQuestions = allQuestions;
+        currentIndex = currentIndex_all;
+    }
+    
     renderQuestion();
 </script>
 </body>
