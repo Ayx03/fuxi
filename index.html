@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>期末考前突击 - 刷题神器</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; max-width: 600px; margin: 40px auto; padding: 20px; color: #333; }
+        .card { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .question { font-size: 1.2em; font-weight: bold; margin-bottom: 20px; line-height: 1.5; }
+        .option { display: block; background: #f8f9fa; padding: 12px 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
+        .option:hover { background: #e9ecef; }
+        .option.selected { border-color: #007bff; background: #e7f1ff; }
+        .option.correct { border-color: #28a745; background: #d4edda; }
+        .option.wrong { border-color: #dc3545; background: #f8d7da; }
+        .btn-group { display: flex; justify-content: space-between; margin-top: 20px; }
+        button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: bold; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .feedback { margin-top: 15px; font-weight: bold; display: none; }
+        .stats { margin-bottom: 15px; font-size: 0.9em; color: #666; display: flex; justify-content: space-between;}
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="stats">
+        <span id="progress">进度: 1 / ?</span>
+        <a href="#" id="toggleMode" style="color: #dc3545;">进入错题本模式</a>
+    </div>
+    <div class="question" id="questionText">题目加载中...</div>
+    <div id="optionsContainer"></div>
+    <div class="feedback" id="feedback"></div>
+    <div class="btn-group">
+        <button class="btn-primary" id="submitBtn">提交答案</button>
+        <button class="btn-secondary" id="nextBtn" style="display: none;">下一题</button>
+    </div>
+</div>
+
+<script>
+    // 这里是你题库的 JSON 格式，我放了两道题作为示例
+    // 你可以用我下面提供的 Python 脚本把 Word 批量转成这种格式粘贴进来
+    const allQuestions = [
+        {
+            id: 1,
+            type: "single", // single, multi, tf (单选/多选/判断)
+            title: "习近平新时代中国特色社会主义思想创立的根本理论法宝是（）",
+            options: ["A. 一个结合", "B. “两个结合”", "C. 三个统一", "D. 四项原则"],
+            answer: "B"
+        },
+        {
+            id: 2,
+            type: "multi",
+            title: "新时代党和国家取得十三个方面历史性成就，领域涵盖（）",
+            options: ["A. 全面从严治党、经济建设", "B. 生态文明、国防和军队建设", "C. 国家安全、外交、“一国两制”", "D. 资本主义制度建设"],
+            answer: "ABC"
+        }
+    ];
+
+    let currentQuestions = allQuestions;
+    let currentIndex = 0;
+    let isMistakeMode = false;
+    let selectedOptions = [];
+
+    // 从本地存储读取错题本
+    let mistakes = JSON.parse(localStorage.getItem('mistakes')) || [];
+
+    const questionText = document.getElementById('questionText');
+    const optionsContainer = document.getElementById('optionsContainer');
+    const submitBtn = document.getElementById('submitBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const feedback = document.getElementById('feedback');
+    const progress = document.getElementById('progress');
+    const toggleMode = document.getElementById('toggleMode');
+
+    function renderQuestion() {
+        if(currentQuestions.length === 0) {
+            questionText.innerText = isMistakeMode ? "太棒了！错题本已经被你清空啦！" : "题库已刷完！";
+            optionsContainer.innerHTML = "";
+            submitBtn.style.display = "none";
+            return;
+        }
+
+        const q = currentQuestions[currentIndex];
+        progress.innerText = `进度: ${currentIndex + 1} / ${currentQuestions.length}`;
+        questionText.innerText = `${q.id}. ${q.title}`;
+        optionsContainer.innerHTML = '';
+        selectedOptions = [];
+        feedback.style.display = "none";
+        submitBtn.style.display = "block";
+        nextBtn.style.display = "none";
+
+        q.options.forEach(opt => {
+            const div = document.createElement('div');
+            div.className = 'option';
+            div.innerText = opt;
+            const optLetter = opt.charAt(0); // 提取 A, B, C, D
+            
+            div.onclick = () => {
+                if(q.type === 'single' || q.type === 'tf') {
+                    document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+                    selectedOptions = [optLetter];
+                    div.classList.add('selected');
+                } else { // 多选
+                    if(selectedOptions.includes(optLetter)) {
+                        selectedOptions = selectedOptions.filter(item => item !== optLetter);
+                        div.classList.remove('selected');
+                    } else {
+                        selectedOptions.push(optLetter);
+                        selectedOptions.sort(); // 保持 ABC 顺序
+                        div.classList.add('selected');
+                    }
+                }
+            };
+            optionsContainer.appendChild(div);
+        });
+    }
+
+    submitBtn.onclick = () => {
+        if(selectedOptions.length === 0) return alert("请先选择答案！");
+        
+        const q = currentQuestions[currentIndex];
+        const userAnswer = selectedOptions.join('');
+        const isCorrect = userAnswer === q.answer;
+        
+        const optionDivs = document.querySelectorAll('.option');
+        optionDivs.forEach(div => {
+            div.onclick = null; // 禁用点击
+            const letter = div.innerText.charAt(0);
+            if(q.answer.includes(letter)) div.classList.add('correct');
+            if(selectedOptions.includes(letter) && !q.answer.includes(letter)) div.classList.add('wrong');
+        });
+
+        feedback.style.display = "block";
+        if(isCorrect) {
+            feedback.innerText = "回答正确！";
+            feedback.style.color = "#28a745";
+            // 如果在错题模式下答对，从错题本移除
+            if(isMistakeMode) {
+                mistakes = mistakes.filter(id => id !== q.id);
+                localStorage.setItem('mistakes', JSON.stringify(mistakes));
+            }
+        } else {
+            feedback.innerText = `回答错误。正确答案是: ${q.answer}`;
+            feedback.style.color = "#dc3545";
+            // 答错自动加入错题本
+            if(!mistakes.includes(q.id)) {
+                mistakes.push(q.id);
+                localStorage.setItem('mistakes', JSON.stringify(mistakes));
+            }
+        }
+
+        submitBtn.style.display = "none";
+        nextBtn.style.display = "block";
+    };
+
+    nextBtn.onclick = () => {
+        currentIndex++;
+        if(currentIndex >= currentQuestions.length) {
+            alert("这一轮刷完啦！");
+            currentIndex = 0;
+        }
+        renderQuestion();
+    };
+
+    toggleMode.onclick = () => {
+        isMistakeMode = !isMistakeMode;
+        if(isMistakeMode) {
+            currentQuestions = allQuestions.filter(q => mistakes.includes(q.id));
+            toggleMode.innerText = "返回全部题库";
+            toggleMode.style.color = "#007bff";
+        } else {
+            currentQuestions = allQuestions;
+            toggleMode.innerText = "进入错题本模式";
+            toggleMode.style.color = "#dc3545";
+        }
+        currentIndex = 0;
+        renderQuestion();
+    };
+
+    // 初始化
+    renderQuestion();
+</script>
+</body>
+</html>
