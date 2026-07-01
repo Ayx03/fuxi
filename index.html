@@ -3,19 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>期末考前突击 - 刷题神器 (完美数据版)</title>
+    <title>期末考前突击 - 刷题神器 (完美记忆版)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f7f9fc; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; line-height: 1.6; }
         .card { background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); margin-top: 15px; }
         
-        /* 顶部状态栏 */
         .stats { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 0.9em; color: #666; flex-wrap: wrap; gap: 10px; }
         .badge { background: #007bff; color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85em; transition: background 0.3s; }
         .controls { display: flex; gap: 10px; }
         .mode-btn { font-weight: bold; text-decoration: none; border: 1px solid currentColor; padding: 4px 12px; border-radius: 12px; transition: 0.2s; font-size: 0.9em; }
         .mode-btn:hover { opacity: 0.8; }
         
-        /* 新增：得分统计看板 */
         .scoreboard { display: flex; justify-content: space-between; background: #f8f9fa; padding: 12px 18px; border-radius: 12px; margin-bottom: 20px; font-weight: bold; font-size: 0.95em; border: 1px solid #e9ecef; }
         .score-item { display: flex; align-items: center; gap: 5px; }
         .s-correct { color: #28a745; }
@@ -25,16 +23,16 @@
         .question { font-size: 1.15em; font-weight: bold; margin-bottom: 20px; }
         .option { display: block; background: #f8f9fa; padding: 14px 16px; margin-bottom: 12px; border-radius: 10px; cursor: pointer; transition: 0.2s; border: 2px solid transparent; word-wrap: break-word; }
         .option:hover { background: #e9ecef; }
-        .option.selected { border-color: #28a745; background: #eafaf1; }
-        .option.correct { border-color: #28a745; background: #d4edda; color: #155724; font-weight: bold; }
-        .option.wrong { border-color: #dc3545; background: #f8d7da; color: #721c24; text-decoration: line-through; }
+        .option.selected { border-color: #007bff; background: #e7f1ff; } /* 默认选中蓝色 */
+        .option.correct { border-color: #28a745 !important; background: #d4edda !important; color: #155724; font-weight: bold; } /* 答对变绿 */
+        .option.wrong { border-color: #dc3545 !important; background: #f8d7da !important; color: #721c24; text-decoration: line-through; } /* 答错变红 */
         
         .btn-group { display: flex; justify-content: space-between; margin-top: 25px; gap: 10px; }
         button { padding: 12px 0; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold; flex: 1; transition: 0.2s; }
         button:active { transform: scale(0.96); }
         button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none !important; }
         .btn-prev { background: #6c757d; color: white; }
-        .btn-submit { background: #28a745; color: white; box-shadow: 0 4px 12px rgba(40,167,69,0.3); }
+        .btn-submit { background: #28a745; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .btn-next { background: #007bff; color: white; box-shadow: 0 4px 12px rgba(0,123,255,0.3); }
         .feedback { margin-top: 20px; font-weight: bold; text-align: center; font-size: 1.1em; display: none; padding: 10px; border-radius: 8px; }
     </style>
@@ -121,7 +119,8 @@
         let currentQuestions = [];
         let currentIndex = 0;
         let selectedOptions = [];
-        let sessionResults = {}; // 新增：记录当前轮次每道题的作答情况 (correct / wrong)
+        let sessionResults = {};    // 记录作答对错状态
+        let sessionSelections = {}; // 新增：记录你具体选了哪几个选项
 
         const questionText = document.getElementById('questionText');
         const optionsContainer = document.getElementById('optionsContainer');
@@ -134,7 +133,6 @@
         const toggleShuffle = document.getElementById('toggleShuffle');
         const qTypeBadge = document.getElementById('qTypeBadge');
 
-        // 洗牌算法
         function shuffleArray(arr) {
             let array = [...arr];
             for (let i = array.length - 1; i > 0; i--) {
@@ -144,25 +142,27 @@
             return array;
         }
 
-        // 保存当前所有状态
+        // 保存状态到本地
         function saveState() {
             localStorage.setItem('xisi_app_state', JSON.stringify({
                 isMistakeMode,
                 isShuffleMode,
                 currentIndex,
-                sessionResults, // 新增：保存作答记录
+                sessionResults,
+                sessionSelections, // 将你选的具体选项也存下来
                 order: currentQuestions.map(q => q.id)
             }));
         }
 
-        // 读取状态
+        // 恢复状态
         function loadState() {
             const state = JSON.parse(localStorage.getItem('xisi_app_state'));
             if (state && state.order && state.order.length > 0) {
                 isMistakeMode = state.isMistakeMode;
                 isShuffleMode = state.isShuffleMode;
                 currentIndex = state.currentIndex;
-                sessionResults = state.sessionResults || {}; // 恢复作答记录
+                sessionResults = state.sessionResults || {}; 
+                sessionSelections = state.sessionSelections || {}; // 读取所选选项
                 
                 currentQuestions = state.order.map(id => allQuestions.find(q => q.id === id)).filter(Boolean);
                 if (currentQuestions.length === 0) resetAndApply();
@@ -174,30 +174,25 @@
             renderQuestion();
         }
 
-        // 重新生成题库并清空进度
         function resetAndApply() {
             let base = isMistakeMode ? allQuestions.filter(q => mistakes.includes(q.id)) : [...allQuestions];
-            
             if (base.length === 0 && isMistakeMode) {
                 alert("错题本已经被你清空啦！将返回全部题库。");
                 isMistakeMode = false;
                 base = [...allQuestions];
             }
-
-            if (isShuffleMode) {
-                base = shuffleArray(base);
-            }
+            if (isShuffleMode) base = shuffleArray(base);
             
             currentQuestions = base;
             currentIndex = 0;
-            sessionResults = {}; // 重置时清空统计数据
+            sessionResults = {}; 
+            sessionSelections = {}; 
             
             saveState();
             updateUI();
             updateScoreBoard();
         }
 
-        // 新增：更新得分面板数据
         function updateScoreBoard() {
             let correct = 0, wrong = 0;
             currentQuestions.forEach(q => {
@@ -228,11 +223,9 @@
             const q = currentQuestions[currentIndex];
             progress.innerText = `进度: ${currentIndex + 1} / ${currentQuestions.length}`;
             
-            // 设置标签文字
             let baseLabel = q.type === 'tf' ? '判断题' : (q.type === 'single' ? '单选题' : '多选题');
             let baseColor = q.type === 'multi' ? '#fd7e14' : '#007bff';
             
-            // 贴心小功能：如果这题这轮做过了，标签会有提示
             if (sessionResults[q.id] === 'correct') {
                 qTypeBadge.innerText = baseLabel + ' (已答对)';
                 qTypeBadge.style.backgroundColor = '#28a745';
@@ -247,15 +240,11 @@
             questionText.innerText = q.title;
             optionsContainer.innerHTML = '';
             selectedOptions = [];
-            feedback.style.display = "none";
-            
-            submitBtn.disabled = false;
-            submitBtn.innerText = "提交答案";
-            submitBtn.style.backgroundColor = "#28a745";
             
             prevBtn.disabled = currentIndex === 0;
             nextBtn.innerText = currentIndex === currentQuestions.length - 1 ? "本轮结束" : "下一题";
 
+            // 生成选项DOM
             q.options.forEach(opt => {
                 const div = document.createElement('div');
                 div.className = 'option';
@@ -263,7 +252,9 @@
                 const optLetter = opt.charAt(0);
                 
                 div.onclick = () => {
-                    if (submitBtn.disabled) return; // 如果已提交则禁用点击
+                    // 只有未作答状态下才允许点击
+                    if (sessionResults[q.id]) return; 
+
                     if(q.type === 'single' || q.type === 'tf') {
                         document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
                         selectedOptions = [optLetter];
@@ -281,72 +272,83 @@
                 };
                 optionsContainer.appendChild(div);
             });
+
+            // 核心逻辑：如果这道题已经做过，直接恢复当时的状态！
+            if (sessionResults[q.id]) {
+                selectedOptions = sessionSelections[q.id] || [];
+                
+                const optionDivs = document.querySelectorAll('.option');
+                optionDivs.forEach(div => {
+                    const letter = div.innerText.charAt(0);
+                    if (selectedOptions.includes(letter)) div.classList.add('selected');
+                    if (q.answer.includes(letter)) div.classList.add('correct');
+                    if (selectedOptions.includes(letter) && !q.answer.includes(letter)) div.classList.add('wrong');
+                });
+
+                feedback.style.display = "block";
+                if (sessionResults[q.id] === 'correct') {
+                    feedback.innerText = "✅ 回答正确！";
+                    feedback.style.color = "#28a745";
+                    feedback.style.backgroundColor = "#d4edda";
+                } else {
+                    feedback.innerText = `❌ 回答错误。正确答案是: ${q.answer}`;
+                    feedback.style.color = "#dc3545";
+                    feedback.style.backgroundColor = "#f8d7da";
+                }
+
+                // 提交按钮变为“重新作答”
+                submitBtn.disabled = false;
+                submitBtn.innerText = "重新作答";
+                submitBtn.style.backgroundColor = "#ffc107"; // 显眼的黄色
+                submitBtn.style.color = "#212529";
+            } else {
+                // 如果没做过，初始化为正常答题状态
+                feedback.style.display = "none";
+                submitBtn.disabled = false;
+                submitBtn.innerText = "提交答案";
+                submitBtn.style.backgroundColor = "#28a745";
+                submitBtn.style.color = "white";
+            }
         }
 
-        // --- 3. 按钮绑定事件 ---
-        toggleShuffle.onclick = (e) => {
-            e.preventDefault();
-            if(!confirm("切换排序模式会重新开启新的一轮，当前进度将重置，是否继续？")) return;
-            isShuffleMode = !isShuffleMode;
-            resetAndApply();
-            renderQuestion();
-        };
-
-        toggleMode.onclick = (e) => {
-            e.preventDefault();
-            isMistakeMode = !isMistakeMode;
-            resetAndApply();
-            renderQuestion();
-        };
-
+        // --- 3. 提交按钮逻辑 ---
         submitBtn.onclick = () => {
+            const q = currentQuestions[currentIndex];
+            
+            // 如果处于“重新作答”模式，点击将清空这道题的数据并重载
+            if (sessionResults[q.id]) {
+                delete sessionResults[q.id];
+                delete sessionSelections[q.id];
+                updateScoreBoard();
+                saveState();
+                renderQuestion();
+                return;
+            }
+
+            // 正常提交模式
             if(selectedOptions.length === 0) return alert("请先选择答案后再提交！");
             
-            const q = currentQuestions[currentIndex];
             const userAnswer = selectedOptions.join('');
             const isCorrect = userAnswer === q.answer;
             
-            // 标记记录
+            // 记录这一次作答的数据
             sessionResults[q.id] = isCorrect ? 'correct' : 'wrong';
-            updateScoreBoard(); // 实时更新计分板
+            sessionSelections[q.id] = [...selectedOptions];
+            updateScoreBoard(); 
             
-            const optionDivs = document.querySelectorAll('.option');
-            optionDivs.forEach(div => {
-                const letter = div.innerText.charAt(0);
-                if(q.answer.includes(letter)) div.classList.add('correct');
-                if(selectedOptions.includes(letter) && !q.answer.includes(letter)) div.classList.add('wrong');
-            });
-
-            feedback.style.display = "block";
-            if(isCorrect) {
-                feedback.innerText = "✅ 回答正确！";
-                feedback.style.color = "#28a745";
-                feedback.style.backgroundColor = "#d4edda";
-                
-                // 从错题本移除
-                if(isMistakeMode) {
-                    mistakes = mistakes.filter(id => id !== q.id);
-                    localStorage.setItem('xisi_mistakes', JSON.stringify(mistakes));
-                }
+            // 错题本维护
+            if (isCorrect) {
+                if(isMistakeMode) mistakes = mistakes.filter(id => id !== q.id);
             } else {
-                feedback.innerText = `❌ 回答错误。正确答案是: ${q.answer}`;
-                feedback.style.color = "#dc3545";
-                feedback.style.backgroundColor = "#f8d7da";
-                
-                // 记入错题本
-                if(!mistakes.includes(q.id)) {
-                    mistakes.push(q.id);
-                    localStorage.setItem('xisi_mistakes', JSON.stringify(mistakes));
-                }
+                if(!mistakes.includes(q.id)) mistakes.push(q.id);
             }
-
-            submitBtn.disabled = true;
-            submitBtn.innerText = "已提交";
-            submitBtn.style.backgroundColor = "#a0cbfc";
+            localStorage.setItem('xisi_mistakes', JSON.stringify(mistakes));
             
-            saveState(); // 保存最新状态
+            saveState();
+            renderQuestion(); // 利用统一入口重新渲染，它会自动进入"已解答"的展示状态
         };
 
+        // --- 4. 导航按钮逻辑 ---
         prevBtn.onclick = () => {
             if (currentIndex > 0) {
                 currentIndex--;
@@ -366,7 +368,6 @@
             renderQuestion();
         };
 
-        // 启动应用
         loadState();
     }
 </script>
